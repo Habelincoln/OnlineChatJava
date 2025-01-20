@@ -1,0 +1,43 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Server",
+            "request": "launch",
+            "mainClass": "Server",
+            "projectName": "AdvancedJavaLearning_f8b84119",
+            "timeout": 30000
+        },
+        {
+            "type": "java",
+            "name": "Launch dataTypes",
+            "request": "launch",
+            "mainClass": "dataTypes",
+            "projectName": "AdvancedJavaLearning_f8b84119",
+            "cwd": "${workspaceFolder}",
+            "vmArgs": "-enableassertions"
+        },
+        {
+            "type": "java",
+            "name": "Client",
+            "request": "launch",
+            "mainClass": "Client",
+            "projectName": "AdvancedJavaLearning_f8b84119",
+            "cwd": "${workspaceFolder}",
+            "vmArgs": "-enableassertions",
+            "timeout": 30000,
+        },
+        {
+            "type": "java",
+            "name": "Client (No Debug)",
+            "request": "launch",
+            "mainClass": "Client",
+            "projectName": "AdvancedJavaLearning_f8b84119",
+            "cwd": "${workspaceFolder}",
+            "vmArgs": "-enableassertions",
+            "timeout": 30000,
+            "noDebug": true
+        }
+    ]
+}

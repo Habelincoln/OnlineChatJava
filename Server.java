@@ -1,0 +1,107 @@
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+public class Server {
+
+    public final static String HOST = "127.0.0.1";
+    public final static int PORT = 4565;
+    private ServerSocket server;
+
+    private ArrayList<ClientSocket> connectedClients = new ArrayList<>();
+
+    private Thread clientAccepterThread;
+
+    public Server () throws InterruptedException {
+
+        try {
+
+            server = new ServerSocket(Server.PORT);
+            System.out.println("Server started on port " + PORT);
+    
+            //start accepting clients
+            (clientAccepterThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    //accept clients forever
+                    System.out.println("Client Accepter Thread started.");
+                    while (true) { 
+                        try {
+                            
+                            //accept new client
+                            ClientSocket newClient = new ClientSocket(server.accept());
+                            System.out.println("Accepted a client: " + newClient);
+                            connectedClients.add(newClient);
+
+                            newClient.send("Welcome to the server!");
+
+                        } catch (IOException ex) {
+                            ex.printStackTrace(System.err);
+                        }
+                        
+                    }
+                }
+            }, "Client Accepter Thread")).start();
+            
+            while (true) { 
+                try {
+                    Thread.sleep(1);
+                ArrayList<Integer> disconnectedClients = new ArrayList<>();
+
+                //check for disconnected clients and send/receive msgs
+                for (int i = 0; i < connectedClients.size(); i++) {
+                    ClientSocket client = connectedClients.get(i);
+                    if (client.isConnected()) {
+                        
+                        String message = "Client " + (i + 1)+ ": " + client.recieve();
+                        Thread.sleep(1);
+                        
+                        
+                        
+                        //send out msgs
+                                
+                            for (int j = 0; j < connectedClients.size(); j++) {
+                                if (i != j) {
+                                    
+                                    connectedClients.get(j).send(message);
+                                    
+                                    
+                                    Thread.sleep(1);
+                                }
+                            } 
+                        
+
+                    } else {
+                        System.out.println("Client" + (i + 1) + " disconnected.");
+                        disconnectedClients.add(i);
+                    }
+
+
+                }
+                //remove all disconnected clients from live clients array
+            for (int i : disconnectedClients) {
+                connectedClients.remove(i);
+                System.out.println("Removed disconnected client: Client" + (i + 1));
+                }
+            
+            } catch (SocketTimeoutException e){}
+            
+            
+            } 
+        } catch (IOException e) {
+            e.printStackTrace(System.err);
+        }
+            
+           
+           
+
+}
+    public static void main(String[]args) throws InterruptedException {
+        
+        new Server();
+    }
+
+    
+
+}
+
