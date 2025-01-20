@@ -18,9 +18,12 @@ public class Client {
     
     private JTextField input;
 
+    private volatile boolean attemptingReconnect = false;
+    private volatile boolean windowOpen = true;
+
    
    public Client(){
-    
+
     input = new JTextField();
     chat = new JTextArea();
     window = new JFrame("Chat");
@@ -49,73 +52,145 @@ public class Client {
             }
       
         } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-            chat.setText("Welcome to the server!" + "\n");
+            if (!client.isClosed()) {
+            chat.setText("Welcome to the server! \n");
+            } else {
+                chat.setText("[System] No server connection. \n");
+            }
         }
-
+    
     }
     });
 
     chat.setEditable(false);
 
     window.setVisible(true);
-    window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); 
     window.setLocationRelativeTo(null);
     window.setResizable(false);
     window.setSize(800,600);
 
     window.add(chat, BorderLayout.PAGE_START);
     window.add(input, BorderLayout.PAGE_END);
-     
-    try {
-        client = new Socket(Server.HOST, Server.PORT);
-        client.setSoTimeout(30000); // Set timeout to 30 seconds
-        fromServer = new DataInputStream(client.getInputStream());
-        toServer = new DataOutputStream(client.getOutputStream());
-        
-        
-           //constantly check for messages
-           
-           Thread serverConnectThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                //get inital welcome to server msg
-                    if (client.isConnected()){
-                    
-                    recieve();
-                 } else {   
-                     System.err.println("Could not connect");
-                 }
-                 //in its own thread, constantly check for msgs
-                 while (!client.isClosed()) {
-                    
-                        recieve();
-                        
-                    
-                }
-            }  catch (IOException e) {
-                e.printStackTrace(System.err);  
-            }
-        }
-           });
-           serverConnectThread.start();
 
-    } catch (IOException e) {
-        e.printStackTrace(System.err);
+    window.addWindowListener(new WindowAdapter() {
+        @Override
+        public void windowClosing(WindowEvent e) {
+            windowOpen = false;
+            attemptingReconnect = false;
+            try {
+                if (client != null && !client.isClosed()) {
+                    client.close();
+                }
+            } catch (IOException ex) {
+                ex.printStackTrace(System.err);
+            }
+            System.exit(0);
+        }
+    });
+
+    try {
+        connectToServer();
+    } catch (Exception e) {
+        handleServerDisconnect();
     }
    }
 
-public synchronized void recieve () throws IOException {
+    private void connectToServer() {
+        try {
+            client = new Socket(Server.HOST, Server.PORT);
+            fromServer = new DataInputStream(client.getInputStream());
+            toServer = new DataOutputStream(client.getOutputStream());
+            attemptingReconnect = false;
+            
+            Thread serverConnectThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (client.isConnected()) {
+                            chat.append("[System] Connected to server!\n");
+                            receive();
+                        }
+                        while (!client.isClosed()) {
+                            receive();
+                        }
+                    } catch (SocketException e) {
+                        chat.append("[System] Server connection lost.\n");
+                        handleServerDisconnect();
+                    } catch (IOException e) {
+                        e.printStackTrace(System.err);
+                        handleServerDisconnect();
+                    }
+                }
+            });
+            serverConnectThread.start();
 
-    String msg = fromServer.readUTF();
-    if (!msg.contains("null")) {
-    chat.append(msg + "\n");
+        } catch (IOException e) {
+            if (!windowOpen) {
+                System.exit(0);
+            }
+            handleServerDisconnect();
+        }
+    }
+
+    private void handleServerDisconnect() {
+        try {
+            if (client != null) {
+            if (!client.isClosed()) {
+                fromServer.close();
+                toServer.close();
+                client.close();
+            }
+        }
+        } catch (IOException ex) {
+            ex.printStackTrace(System.err);
+        }
+
+        if (!attemptingReconnect && windowOpen) {
+            attemptingReconnect = true;
+            Thread reconnectThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (attemptingReconnect && windowOpen) {
+                        try {
+                            Thread.sleep(1000);
+                            if (client != null) {
+                                if (!chat.getText().contains("[System] Attempting to reconnect...\n")) {
+                            chat.append("[System] Attempting to reconnect...\n");
+                                }
+                            } else if (client == null) {
+                                if (!chat.getText().contains("[System] Server connection failed. Waiting for server...\n")) {
+                                    chat.append("[System] Server connection failed. Waiting for server...\n");
+                                        }
+                            }
+                            connectToServer();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+            });
+            reconnectThread.start();
+        }
+    }
+
+public synchronized void receive () throws IOException {
+    try {
+        String msg = fromServer.readUTF();
+        if (!msg.contains("null")) {
+            chat.append(msg + "\n");
+        }
+    } catch (SocketException e) {
+        handleServerDisconnect();
+        throw e;
     }
 }
 
 public void send (String msg) throws IOException {
-       
+        if (client != null && !client.isClosed()) {
             toServer.writeUTF(msg);
+        }
 }
    
     public static void main(String[]args){

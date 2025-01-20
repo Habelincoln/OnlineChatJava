@@ -16,15 +16,15 @@ public class ClientSocket {
             fromClient = new DataInputStream(socket.getInputStream());
             toClient = new DataOutputStream(socket.getOutputStream());
 
-            // Increase timeout to 1 second
+           
             client.setSoTimeout(50);
     }
     
-    public String recieve () throws IOException {
+    public String receive () throws IOException {
         try {
             return fromClient.readUTF();
         } catch (SocketTimeoutException e) {
-            return null; // Return null on timeout instead of throwing
+            return null; // return null on timeout instead of throwing ex
         }
     }
     

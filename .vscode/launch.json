@@ -6,7 +6,7 @@
             "name": "Server",
             "request": "launch",
             "mainClass": "Server",
-            "projectName": "AdvancedJavaLearning_f8b84119",
+            "projectName": "OnlineChatPrototype_c373b9c0",
             "timeout": 30000
         },
         {
@@ -14,7 +14,7 @@
             "name": "Launch dataTypes",
             "request": "launch",
             "mainClass": "dataTypes",
-            "projectName": "AdvancedJavaLearning_f8b84119",
+            "projectName": "OnlineChatPrototype_c373b9c0",
             "cwd": "${workspaceFolder}",
             "vmArgs": "-enableassertions"
         },
@@ -23,7 +23,7 @@
             "name": "Client",
             "request": "launch",
             "mainClass": "Client",
-            "projectName": "AdvancedJavaLearning_f8b84119",
+            "projectName": "OnlineChatPrototype_c373b9c0",
             "cwd": "${workspaceFolder}",
             "vmArgs": "-enableassertions",
             "timeout": 30000,
@@ -33,7 +33,7 @@
             "name": "Client (No Debug)",
             "request": "launch",
             "mainClass": "Client",
-            "projectName": "AdvancedJavaLearning_f8b84119",
+            "projectName": "OnlineChatPrototype_c373b9c0",
             "cwd": "${workspaceFolder}",
             "vmArgs": "-enableassertions",
             "timeout": 30000,

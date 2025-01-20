@@ -4,8 +4,10 @@ import java.util.*;
 
 public class Server {
 
+    // public final static String HOST = "173.70.37.213";
     public final static String HOST = "127.0.0.1";
-    public final static int PORT = 4565;
+
+    public final static int PORT = 7808;
     private ServerSocket server;
 
     private ArrayList<ClientSocket> connectedClients = new ArrayList<>();
@@ -51,9 +53,10 @@ public class Server {
                 //check for disconnected clients and send/receive msgs
                 for (int i = 0; i < connectedClients.size(); i++) {
                     ClientSocket client = connectedClients.get(i);
+                    try {
                     if (client.isConnected()) {
                         
-                        String message = "Client " + (i + 1)+ ": " + client.recieve();
+                        String message = "Client " + (i + 1)+ ": " + client.receive();
                         Thread.sleep(1);
                         
                         
@@ -71,8 +74,9 @@ public class Server {
                             } 
                         
 
-                    } else {
-                        System.out.println("Client" + (i + 1) + " disconnected.");
+                    }
+                 } catch (IOException ex) {
+                        System.out.println("Client " + (i + 1) + " disconnected.");
                         disconnectedClients.add(i);
                     }
 
@@ -81,10 +85,10 @@ public class Server {
                 //remove all disconnected clients from live clients array
             for (int i : disconnectedClients) {
                 connectedClients.remove(i);
-                System.out.println("Removed disconnected client: Client" + (i + 1));
+                System.out.println("Removed disconnected client: Client " + (i + 1));
                 }
             
-            } catch (SocketTimeoutException e){}
+            } catch (Exception e){}
             
             
             } 
