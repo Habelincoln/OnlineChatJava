@@ -4,8 +4,8 @@ import java.util.*;
 
 public class Server {
 
-    // public final static String HOST = "173.70.37.213";
-    public final static String HOST = "127.0.0.1";
+    public final static String HOST = "173.70.37.213"; // for online use
+    // public final static String HOST = "127.0.0.1"; //for local use
 
     public final static int PORT = 7808;
     private ServerSocket server;
@@ -13,7 +13,6 @@ public class Server {
     private ArrayList<ClientSocket> connectedClients = new ArrayList<>();
 
     private Thread clientAccepterThread;
-
     public Server () throws InterruptedException {
 
         try {
