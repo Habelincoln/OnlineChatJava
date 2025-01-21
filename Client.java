@@ -14,19 +14,19 @@ public class Client {
 
     private JFrame window;
     private JTextArea chat;
-
-    
+    private JScrollPane scroller;
     private JTextField input;
 
     private volatile boolean attemptingReconnect = false;
     private volatile boolean windowOpen = true;
 
    
-   public Client(){
-
+   public Client() {
+    
     input = new JTextField();
-    chat = new JTextArea();
+    chat = new JTextArea(31, 71);
     window = new JFrame("Chat");
+    scroller =  new JScrollPane(chat, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
     input.addKeyListener(new KeyListener() {
        @Override
@@ -52,26 +52,55 @@ public class Client {
             }
       
         } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-            if (!client.isClosed()) {
+            if (client != null) {
+                if (!client.isClosed() ) {
             chat.setText("Welcome to the server! \n");
-            } else {
+                } else {
                 chat.setText("[System] No server connection. \n");
+                }
+            } else {
+                chat.setText("[System] No server connection. Connecting... \n");
             }
         }
     
     }
     });
 
-    chat.setEditable(false);
 
+    chat.setEditable(false);
+    
+    chat.addKeyListener(new KeyListener() {
+
+        @Override
+        public void keyTyped(KeyEvent e){}
+        @Override
+        public void keyPressed(KeyEvent e){}
+        @Override
+        public void keyReleased(KeyEvent e){
+
+            if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                if (!client.isClosed()) {
+                    chat.setText("Welcome to the server! \n");
+                    } else {
+                        chat.setText("[System] No server connection. \n");
+                    }
+            }
+
+        }
+
+    });
+
+    
     window.setVisible(true);
     window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); 
     window.setLocationRelativeTo(null);
     window.setResizable(false);
     window.setSize(800,600);
 
-    window.add(chat, BorderLayout.PAGE_START);
+    // window.add(chat, BorderLayout.PAGE_START);
     window.add(input, BorderLayout.PAGE_END);
+    window.add(scroller);
+    
 
     window.addWindowListener(new WindowAdapter() {
         @Override

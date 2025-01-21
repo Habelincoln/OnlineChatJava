@@ -4,11 +4,13 @@ import java.util.*;
 
 public class Server {
 
-    public final static String HOST = "173.70.37.213"; // for online use
-    // public final static String HOST = "127.0.0.1"; //for local use
+        public final static String HOST = "173.70.37.213"; // for online use
+        //  public final static String HOST = "127.0.0.1"; //for local use
 
-    public final static int PORT = 7808;
-    private ServerSocket server;
+        // public final static int PORT = 7808; //for wireless
+      public final static int PORT = 7809; //for wired
+        
+        private ServerSocket server;
 
     private ArrayList<ClientSocket> connectedClients = new ArrayList<>();
 
@@ -100,7 +102,9 @@ public class Server {
 
 }
     public static void main(String[]args) throws InterruptedException {
-        
+        System.out.println("Host: " + HOST);
+        System.out.println("Port: " + PORT);
+
         new Server();
     }
 
