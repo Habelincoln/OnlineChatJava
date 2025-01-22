@@ -8,7 +8,8 @@ import java.nio.file.Paths;
 
 public class Client {
    
-    final static String configPath = "C:\\GitHub\\OnlineChatPrototype\\Host.config";
+    final static String hostConfigPath = "C:\\GitHub\\OnlineChatPrototype\\Host.config";
+    final static String portConfigPath = "C:\\GitHub\\OnlineChatPrototype\\Port.config";
             
     private Socket client;
 
@@ -134,8 +135,10 @@ public class Client {
             
             
         try {
-            final String HOST = new String(Files.readAllBytes(Paths.get(configPath)));
-            client = new Socket(HOST, Server.PORT);
+            final String HOST = new String(Files.readAllBytes(Paths.get(hostConfigPath)));
+            final String portString = new String(Files.readAllBytes(Paths.get(portConfigPath)));
+            final int PORT = Integer.parseInt(portString);
+            client = new Socket(HOST, PORT);
             fromServer = new DataInputStream(client.getInputStream());
             toServer = new DataOutputStream(client.getOutputStream());
             attemptingReconnect = false;
