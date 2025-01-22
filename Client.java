@@ -3,14 +3,17 @@ import java.awt.event.*;
 import java.io.*;
 import java.net.*;
 import javax.swing.*;
-
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class Client {
    
+    final static String configPath = "C:\\GitHub\\OnlineChatPrototype\\Host.config";
+            
     private Socket client;
 
-   private DataInputStream fromServer; 
-   private DataOutputStream toServer;
+    private DataInputStream fromServer; 
+    private DataOutputStream toServer;
 
     private JFrame window;
     private JTextArea chat;
@@ -27,6 +30,7 @@ public class Client {
     chat = new JTextArea(31, 71);
     window = new JFrame("Chat");
     scroller =  new JScrollPane(chat, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+    chat.setText("[System] Connecting... \n");
 
     input.addKeyListener(new KeyListener() {
        @Override
@@ -126,8 +130,12 @@ public class Client {
    }
 
     private void connectToServer() {
+        
+            
+            
         try {
-            client = new Socket(Server.HOST, Server.PORT);
+            final String HOST = new String(Files.readAllBytes(Paths.get(configPath)));
+            client = new Socket(HOST, Server.PORT);
             fromServer = new DataInputStream(client.getInputStream());
             toServer = new DataOutputStream(client.getOutputStream());
             attemptingReconnect = false;

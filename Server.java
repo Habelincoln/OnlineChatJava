@@ -1,27 +1,30 @@
-import java.io.*;
+import java.io.IOException;
 import java.net.*;
 import java.util.*;
 
-public class Server {
 
+public class Server {
+        
         public final static String HOST = "173.70.37.213"; // for online use
         //  public final static String HOST = "127.0.0.1"; //for local use
 
         // public final static int PORT = 7808; //for wireless
-      public final static int PORT = 7809; //for wired
+           public final static int PORT = 7809; //for wired
         
         private ServerSocket server;
 
     private ArrayList<ClientSocket> connectedClients = new ArrayList<>();
 
     private Thread clientAccepterThread;
+
     public Server () throws InterruptedException {
 
         try {
 
             server = new ServerSocket(Server.PORT);
-            System.out.println("Server started on port " + PORT);
-    
+            System.out.println("Server started.");
+            System.out.println("HOST: " + HOST);
+            System.out.println("PORT: " + PORT);
             //start accepting clients
             (clientAccepterThread = new Thread(new Runnable() {
                 @Override
@@ -35,8 +38,19 @@ public class Server {
                             ClientSocket newClient = new ClientSocket(server.accept());
                             System.out.println("Accepted a client: " + newClient);
                             connectedClients.add(newClient);
-
                             newClient.send("Welcome to the server!");
+                            int j = connectedClients.indexOf(newClient);
+                            for (int i = 0; i < connectedClients.size(); i++) {
+                                ClientSocket client = connectedClients.get(i);
+                                if (i != j) {
+                                    try {
+                                        
+                                        client.send("[Server] Client " + (connectedClients.indexOf(newClient) + 1) + " connected.");
+
+                                    } catch (IOException e) {
+                                    }
+                                }
+                            }
 
                         } catch (IOException ex) {
                             ex.printStackTrace(System.err);
@@ -79,6 +93,16 @@ public class Server {
                  } catch (IOException ex) {
                         System.out.println("Client " + (i + 1) + " disconnected.");
                         disconnectedClients.add(i);
+                        for (int j = 0; j < connectedClients.size(); j++) {
+                            if (i != j) {
+                                
+                                connectedClients.get(j).send("[Server] Client " + (i + 1) + " disconnected.");
+                                
+                                
+                                Thread.sleep(1);
+                            }
+                        } 
+        
                     }
 
 
