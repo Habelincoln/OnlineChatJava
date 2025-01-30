@@ -8,8 +8,8 @@ public class Server {
         public final static String HOST = "173.70.37.213"; // for online use
         //  public final static String HOST = "127.0.0.1"; //for local use
 
-        // public final static int PORT = 7808; //for wireless
-           public final static int PORT = 7809; //for wired
+        public final static int PORT = 7808; //for wireless
+        //    public final static int PORT = 7809; //for wired
         
         private ServerSocket server;
 
@@ -39,6 +39,7 @@ public class Server {
                             System.out.println("Accepted a client: " + newClient);
                             connectedClients.add(newClient);
                             newClient.send("Welcome to the server!");
+                            
                             int j = connectedClients.indexOf(newClient);
                             for (int i = 0; i < connectedClients.size(); i++) {
                                 ClientSocket client = connectedClients.get(i);
@@ -46,6 +47,7 @@ public class Server {
                                     try {
                                         
                                         client.send("[Server] Client " + (connectedClients.indexOf(newClient) + 1) + " connected.");
+                                        client.send("08805768576857" + (connectedClients.indexOf(newClient) + 1));
 
                                     } catch (IOException e) {
                                     }
@@ -63,6 +65,8 @@ public class Server {
             while (true) { 
                 try {
                     Thread.sleep(1);
+
+                    
                 ArrayList<Integer> disconnectedClients = new ArrayList<>();
 
                 //check for disconnected clients and send/receive msgs
@@ -96,22 +100,24 @@ public class Server {
                         for (int j = 0; j < connectedClients.size(); j++) {
                             if (i != j) {
                                 
-                                connectedClients.get(j).send("[Server] Client " + (i + 1) + " disconnected.");
+                                connectedClients.get(j).send("[Server] Client " + (j + 1) + " has disconnected.");
                                 
                                 
                                 Thread.sleep(1);
                             }
                         } 
-        
+                        //remove all disconnected clients from live clients array
+                        for (int m : disconnectedClients) {
+                            connectedClients.remove(m);
+                            System.out.println("Removed disconnected client: Client " + (m + 1));
+    
+                        }   
                     }
-
+                            
 
                 }
-                //remove all disconnected clients from live clients array
-            for (int i : disconnectedClients) {
-                connectedClients.remove(i);
-                System.out.println("Removed disconnected client: Client " + (i + 1));
-                }
+                
+            
             
             } catch (Exception e){}
             

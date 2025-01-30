@@ -5,7 +5,7 @@ import java.net.*;
 import javax.swing.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
+ 
 public class Client {
    
     final static String hostConfigPath = "C:\\GitHub\\OnlineChatPrototype\\Host.config";
@@ -20,6 +20,8 @@ public class Client {
     private JTextArea chat;
     private JScrollPane scroller;
     private JTextField input;
+    private JTextArea clientList;
+    private JScrollPane listScroller;
 
     private volatile boolean attemptingReconnect = false;
     private volatile boolean windowOpen = true;
@@ -31,7 +33,11 @@ public class Client {
     chat = new JTextArea(31, 71);
     window = new JFrame("Chat");
     scroller =  new JScrollPane(chat, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+    listScroller =  new JScrollPane(clientList, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+    clientList = new JTextArea(31, 9);
+
     chat.setText("[System] Connecting... \n");
+    clientList.setText("Connected Clients: \n ______________\n You\n -----\n");
 
     input.addKeyListener(new KeyListener() {
        @Override
@@ -73,6 +79,7 @@ public class Client {
 
 
     chat.setEditable(false);
+    clientList.setEditable(false);
     
     chat.addKeyListener(new KeyListener() {
 
@@ -100,11 +107,13 @@ public class Client {
     window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); 
     window.setLocationRelativeTo(null);
     window.setResizable(false);
-    window.setSize(800,600);
+    window.setSize(1000,600);
 
     // window.add(chat, BorderLayout.PAGE_START);
     window.add(input, BorderLayout.PAGE_END);
     window.add(scroller);
+    window.add(clientList, BorderLayout.WEST);
+    // window.add(listScroller);
     
 
     window.addWindowListener(new WindowAdapter() {
@@ -149,6 +158,7 @@ public class Client {
                     try {
                         if (client.isConnected()) {
                             chat.append("[System] Connected to server!\n");
+                            receive();
                             receive();
                         }
                         while (!client.isClosed()) {
@@ -219,7 +229,13 @@ public synchronized void receive () throws IOException {
     try {
         String msg = fromServer.readUTF();
         if (!msg.contains("null")) {
+            if (msg.contains("08805768576857")) {
+                clientList.append("Client " + msg.substring(14));
+                clientList.append("\n-----\n");
+
+            } else {
             chat.append(msg + "\n");
+            }
         }
     } catch (SocketException e) {
         handleServerDisconnect();
@@ -233,7 +249,7 @@ public void send (String msg) throws IOException {
         }
 }
    
-    public static void main(String[]args){
+    public static void main(String[]args) {
     
         new Client();
 
