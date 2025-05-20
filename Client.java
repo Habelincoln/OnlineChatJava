@@ -6,7 +6,7 @@ import javax.swing.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
  
-public class Client {
+public class Client { //TODO: Add ability to rename other clients
 
     final static String hostConfigPath = "C:\\GitHub\\OnlineChatPrototype\\Host.config";
     final static String portConfigPath = "C:\\GitHub\\OnlineChatPrototype\\Port.config";
@@ -27,7 +27,7 @@ public class Client {
     private volatile boolean attemptingReconnect = false;
     private volatile boolean windowOpen = true;
 
-    private ClientGraphics graphics;
+    // private ClientGraphics graphics;
 
    
    public Client() {
