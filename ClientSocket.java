@@ -4,12 +4,12 @@ import java.net.*;
 public class ClientSocket {
 
     private Socket client;
-   private DataInputStream fromClient; 
-   private DataOutputStream toClient;
+    private DataInputStream fromClient; 
+    private DataOutputStream toClient;
+    private int id;
 
 
-
-    public ClientSocket(Socket socket ) throws IOException {
+    public ClientSocket(Socket socket) throws IOException {
         client = socket;
         
         
@@ -20,7 +20,7 @@ public class ClientSocket {
             client.setSoTimeout(50);
     }
     
-    public String receive () throws IOException {
+    public String receive() throws IOException {
         try {
             return fromClient.readUTF();
         } catch (SocketTimeoutException e) {
@@ -28,7 +28,7 @@ public class ClientSocket {
         }
     }
     
-    public void send (String msg) throws IOException {
+    public void send(String msg) throws IOException {
         
         if (msg.length() > 0 && msg.length() < 251) {
            
@@ -38,6 +38,14 @@ public class ClientSocket {
 
     public boolean isConnected () {
         return !client.isClosed();
+    }
+
+    public void setID(int id) { 
+        this.id = id;
+    }
+
+    public int getID() {
+        return id;
     }
 
 }

@@ -7,11 +7,12 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
  
 public class Client {
-   
+
     final static String hostConfigPath = "C:\\GitHub\\OnlineChatPrototype\\Host.config";
     final static String portConfigPath = "C:\\GitHub\\OnlineChatPrototype\\Port.config";
             
     private Socket client;
+    private int selfID;
 
     private DataInputStream fromServer; 
     private DataOutputStream toServer;
@@ -26,6 +27,8 @@ public class Client {
     private volatile boolean attemptingReconnect = false;
     private volatile boolean windowOpen = true;
 
+    private ClientGraphics graphics;
+
    
    public Client() {
     
@@ -36,7 +39,12 @@ public class Client {
     listScroller =  new JScrollPane(clientList, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
     clientList = new JTextArea(31, 9);
 
-    chat.setText("[System] Connecting... \n");
+    //  graphics = new ClientGraphics(chat, clientList, input); temporarily removed
+    try {
+    chat.setText("[System] Connecting to: " + new String(Files.readAllBytes(Paths.get(hostConfigPath))) + "...\n");
+    } catch (IOException e) {
+        e.printStackTrace(System.err);
+    }
     clientList.setText("Connected Clients: \n ______________\n You\n -----\n");
 
     input.addKeyListener(new KeyListener() {
@@ -65,7 +73,6 @@ public class Client {
         } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
             if (client != null) {
                 if (!client.isClosed() ) {
-            chat.setText("Welcome to the server! \n");
                 } else {
                 chat.setText("[System] No server connection. \n");
                 }
@@ -140,8 +147,6 @@ public class Client {
    }
 
     private void connectToServer() {
-        
-            
             
         try {
             final String HOST = new String(Files.readAllBytes(Paths.get(hostConfigPath)));
@@ -158,8 +163,7 @@ public class Client {
                     try {
                         if (client.isConnected()) {
                             chat.append("[System] Connected to server!\n");
-                            receive();
-                            receive();
+                            
                         }
                         while (!client.isClosed()) {
                             receive();
@@ -229,10 +233,16 @@ public synchronized void receive () throws IOException {
     try {
         String msg = fromServer.readUTF();
         if (!msg.contains("null")) {
-            if (msg.contains("08805768576857")) {
-                clientList.append("Client " + msg.substring(14));
-                clientList.append("\n-----\n");
+            if (msg.contains("CLIENT_LIST:")) {
+                clientList.setText("Connected Clients: \n ______________\n");
+                clientList.append("You ( " + selfID + ")\n");
+                clientList.append(msg.substring(12));
 
+            } else if (msg.contains("WELCOME: Client")) {
+                selfID = Integer.parseInt(msg.substring(16));
+                System.out.println("my ID: " + selfID);
+                chat.append(msg);
+            
             } else {
             chat.append(msg + "\n");
             }
