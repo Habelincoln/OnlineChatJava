@@ -4,49 +4,40 @@ import java.net.*;
 public class ClientSocket {
 
     private Socket client;
-    private DataInputStream fromClient; 
-    private DataOutputStream toClient;
+    private ObjectInputStream fromClient;
+    private ObjectOutputStream toClient;
     private int id;
-
 
     public ClientSocket(Socket socket) throws IOException {
         client = socket;
-        
-        
-            fromClient = new DataInputStream(socket.getInputStream());
-            toClient = new DataOutputStream(socket.getOutputStream());
-
-           
-            client.setSoTimeout(50);
+        toClient = new ObjectOutputStream(client.getOutputStream());
+        toClient.flush();
+        fromClient = new ObjectInputStream(client.getInputStream());
+        client.setSoTimeout(50);
     }
-    
-    public String receive() throws IOException {
+
+    public Object receiveObject() throws IOException, ClassNotFoundException {
         try {
-            return fromClient.readUTF();
+            return fromClient.readObject();
         } catch (SocketTimeoutException e) {
-            return null; // return null on timeout instead of throwing ex
-        }
-    }
-    
-    public void send(String msg) throws IOException {
-        
-        if (msg.length() > 0 && msg.length() < 251) {
-           
-                toClient.writeUTF(msg);
+            return null;
         }
     }
 
-    public boolean isConnected () {
+    public void sendObject(Object obj) throws IOException {
+        toClient.writeObject(obj);
+        toClient.flush();
+    }
+
+    public boolean isConnected() {
         return !client.isClosed();
     }
 
-    public void setID(int id) { 
+    public void setID(int id) {
         this.id = id;
     }
 
     public int getID() {
         return id;
     }
-
 }
-

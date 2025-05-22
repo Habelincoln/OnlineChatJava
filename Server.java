@@ -2,163 +2,110 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 
-
 public class Server {
-        
-        // public final static String HOST = "173.70.40.145"; // for online use
-         public final static String HOST = "127.0.0.1"; //for local use
 
-        public final static int PORT = 7808; //for wireless
-        //    public final static int PORT = 7809; //for wired
-        
-        private ServerSocket server;
+    public final static String HOST = "127.0.0.1";
+    public final static int PORT = 7808;
 
-    private ArrayList<ClientSocket> connectedClients = new ArrayList<>();
-
+    private ServerSocket server;
+    private final List<ClientSocket> connectedClients = new ArrayList<>();
     private int nextClientId = 1;
-    private Map<Integer, ClientSocket> clientMap = new HashMap<>();
 
-    private Thread clientAccepterThread;
-
-    public Server () throws InterruptedException {
-
+    public Server() {
         try {
-
-            server = new ServerSocket(Server.PORT);
+            server = new ServerSocket(PORT);
             System.out.println("Server started.");
             System.out.println("HOST: " + HOST);
             System.out.println("PORT: " + PORT);
-            //start accepting clients
-            (clientAccepterThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    //accept clients forever
-                    System.out.println("Client Accepter Thread started.");
-                    while (true) { 
-                        try {
-                            
-                            //accept new client
-                            ClientSocket newClient = new ClientSocket(server.accept());
-                            int clientId = nextClientId++;
-                            clientMap.put(clientId, newClient);
-                            newClient.setID(clientId);
-                            System.out.println("Accepted a client: " + newClient);
-                            connectedClients.add(newClient);
-                            newClient.send("WELCOME: Client " + clientId);
-                            
-                            int j = connectedClients.indexOf(newClient);
-                            for (int i = 0; i < connectedClients.size(); i++) {
-                                ClientSocket client = connectedClients.get(i);
-                                if (i != j) {
-                                    try {
-                                        
-                                        client.send("[Server] Client " + client.getID() + " connected.");
-                                        broadcastClientList();
 
-                                    } catch (IOException e) {
-                                        e.printStackTrace(System.err);
-                                    }
-                                }
-                            }
-
-                        } catch (IOException ex) {
-                            ex.printStackTrace(System.err);
-                        }
-                        
-                    }
-                }
-            }, "Client Accepter Thread")).start();
-            
-            while (true) { 
-                try {
-                    Thread.sleep(1);
-
-                    
-                ArrayList<Integer> disconnectedClients = new ArrayList<>();
-
-                //check for disconnected clients and send/receive msgs
-                for (int i = 0; i < connectedClients.size(); i++) {
-                    ClientSocket client = connectedClients.get(i);
+            // client accepter thread
+            new Thread(() -> {
+                while (true) {
                     try {
-                    if (client.isConnected()) {
-                        
-                        String message = "Client " + client.getID() + ": " + client.receive();
-                        Thread.sleep(1);
-                        
-                        
-                        //send out msgs
-                                
-                            for (int j = 0; j < connectedClients.size(); j++) {
-                                if (i != j) {
-                                    
-                                    connectedClients.get(j).send(message);
-                                    
-                                    
-                                    Thread.sleep(1);
-                                }
-                            } 
-                        
-
+                        ClientSocket newClient = new ClientSocket(server.accept());
+                        int clientId = nextClientId++;
+                        newClient.setID(clientId);
+                        System.out.println("Accepted a client: " + clientId);
+                        synchronized (connectedClients) {
+                            connectedClients.add(newClient);
+                        }
+                        newClient.sendObject("[Server] Welcome: Client " + clientId);
+                        broadcastClientList();
+                        broadcastMessage("[Server] Client " + clientId + " connected.", newClient);
+                    } catch (IOException e) {
+                        e.printStackTrace(System.err);
                     }
-                 } catch (IOException ex) {
-                        System.out.println("Client " + client.getID() + " disconnected.");
-                        disconnectedClients.add(i);
-                        for (int j = 0; j < connectedClients.size(); j++) {
-                            if (i != j) {
-                                
-                                connectedClients.get(j).send("[Server] Client " + client.getID() + " has disconnected.");
-                                
-                                
-                                Thread.sleep(1);
-                            }
-                        } 
-                        //remove all disconnected clients from live clients array
-                        for (int m : disconnectedClients) {
-                            clientMap.remove(connectedClients.get(m).getID());
-                            connectedClients.remove(m);
-                            System.out.println("Removed disconnected client: Client " + client.getID());
-                            
-    
-                        }   
-                    }
-                            
-
                 }
-                
-            
-            
-            } catch (Exception e){}
-            
-            
-            } 
+            }, "Client Accepter Thread").start();
+
+            // thread to handle messages from clients and disconnects
+            new Thread(() -> {
+                while (true) {
+                    List<ClientSocket> disconnected = new ArrayList<>();
+                    List<ClientSocket> clientsSnapshot;
+                    synchronized (connectedClients) {
+                        clientsSnapshot = new ArrayList<>(connectedClients);
+                    }
+                    for (ClientSocket client : clientsSnapshot) {
+                        try {
+                            Object obj = client.receiveObject();
+                            if (obj instanceof String msg && msg.length() > 0) {
+                                broadcastMessage("Client " + client.getID() + ": " + msg, client);
+                            }
+                        } catch (Exception e) {
+                            System.out.println("Client " + client.getID() + " disconnected.");
+                            disconnected.add(client);
+                        }
+                    }
+                    if (!disconnected.isEmpty()) {
+                        synchronized (connectedClients) {
+                            connectedClients.removeAll(disconnected);
+                        }
+                        for (ClientSocket client : disconnected) {
+                            broadcastMessage("[Server] Client " + client.getID() + " disconnected.", null);
+                        }
+                        broadcastClientList();
+                    }
+                    try { Thread.sleep(10); } catch (InterruptedException ignored) {}
+                }
+            }, "Message Handler Thread").start();
+
         } catch (IOException e) {
             e.printStackTrace(System.err);
         }
-            
-           
-           
-
     }
 
-    private void broadcastClientList() throws IOException {
-        for (ClientSocket client : connectedClients) {
-            int clientId = client.getID();
-            StringBuilder sb = new StringBuilder("CLIENT_LIST:");
-            for (ClientSocket other : connectedClients) {
-                if (other.getID() != clientId) {
-                    sb.append("Client ").append(other.getID()).append("\n");
-                }
+    private void broadcastClientList() {
+        HashMap<Integer, String> clientMap = new HashMap<>();
+        synchronized (connectedClients) {
+            for (ClientSocket client : connectedClients) {
+                clientMap.put(client.getID(), "Client " + client.getID());
             }
-            client.send(sb.toString());
+            for (ClientSocket client : connectedClients) {
+                try {
+                    client.sendObject(clientMap);
+                } catch (IOException e) {
+                    e.printStackTrace(System.err);
+                    }
+            }
         }
     }
 
-    public static void main(String[]args) throws InterruptedException {
-
-        new Server();
+    private void broadcastMessage(String msg, ClientSocket except) {
+        synchronized (connectedClients) {
+            for (ClientSocket client : connectedClients) {
+                if (client != except) {
+                    try {
+                        client.sendObject(msg);
+                    } catch (IOException e) {
+                        e.printStackTrace(System.err);
+                    }
+                }
+            }
+        }
     }
 
-    
-
+    public static void main(String[] args) {
+        new Server();
+    }
 }
-
