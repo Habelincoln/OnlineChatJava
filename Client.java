@@ -4,7 +4,7 @@ import java.io.*;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
+import java.util.*;
 import javax.swing.*;
 public class Client implements ActionListener {
 
@@ -25,6 +25,9 @@ public class Client implements ActionListener {
     private volatile boolean attemptingReconnect = false;
     private volatile boolean windowOpen = true;
 
+    private HashMap<Integer, String> changedClients = new HashMap<>();
+    private HashMap<Integer, String> tempMap = new HashMap<>();
+
     public Client() {
         input = new JTextField();
         chat = new JTextArea(31, 71);
@@ -35,6 +38,7 @@ public class Client implements ActionListener {
         chat.setWrapStyleWord(true);
         try {
             chat.setText("Press CTRL + D to toggle dark mode.\n");
+            chat.append("Use /setName <ID> <New Name> to change a client's name.\n");
             chat.append("[System] Connecting to: " + new String(Files.readAllBytes(Paths.get(hostConfigPath))) + "...\n");
         } catch (IOException e) {
             e.printStackTrace(System.err);
@@ -51,7 +55,9 @@ public class Client implements ActionListener {
                         } catch (IOException ex) {
                             ex.printStackTrace(System.err);
                         }
+                        if (!message.substring(0,1).equals("/")) {
                         chat.append("You: " + input.getText() + "\n");
+                        }
                         chat.setCaretPosition(chat.getDocument().getLength());
                         input.setText("");
                     }
@@ -213,25 +219,63 @@ public class Client implements ActionListener {
         } else if (obj instanceof HashMap) {
             @SuppressWarnings("unchecked")
             HashMap<Integer, String> clientMap = (HashMap<Integer, String>) obj;
-            updateClientList(clientMap);
+            updateClientList(clientMap, true);
+            tempMap = clientMap;
         }
     }
 
-    private void updateClientList(HashMap<Integer, String> clientMap) {
-        clientList.setText("Connected Clients: \n ______________\n");
-        clientList.append("You (" + selfID + ")\n");
-        for (var entry : clientMap.entrySet()) {
-            if (entry.getKey() != selfID) {
-                clientList.append(entry.getValue() + "\n");
+    private void updateClientList(HashMap<Integer, String> clientMap, boolean isNewList) {
+        if (isNewList) {
+            clientList.setText("Connected Clients: \n ______________\n");
+            clientList.append("You (" + selfID + ")\n");
+            for (var entry : clientMap.entrySet()) {
+                int key = entry.getKey();
+                if (entry.getKey() != selfID) {
+                    if (changedClients.containsKey(entry.getKey())) {
+                        clientList.append(changedClients.get(entry.getKey()) + "\n");
+                    } else {
+                    clientList.append(entry.getValue() + "\n");
+                 }
                 
+               }
             }
+        } else {
+            clientList.setText("Connected Clients: \n ______________\n");
+            clientList.append("You (" + selfID + ")\n");
+            for (var entry : tempMap.entrySet()) {
+                if (entry.getKey() != selfID) {
+                    if (changedClients.containsKey(entry.getKey())) {
+                        clientList.append(changedClients.get(entry.getKey()) + "\n");
+                    } else {
+                    clientList.append(entry.getValue() + "\n");
+                 }
+                
+               }
+            }
+
         }
+        
     }
 
     public void send(String msg) throws IOException {
         if (client != null && !client.isClosed()) {
+            
+            if (msg.length() >=8 && msg.substring(0,8).equals("/setName")) {
+                int firstSpace = msg.indexOf(' ', 8);
+                int secondSpace = msg.indexOf(' ', firstSpace + 1);
+                int clientToChange = Integer.parseInt(msg.substring(firstSpace + 1, secondSpace));
+                String newName = msg.substring(secondSpace + 1) + " (" + clientToChange + ")";
+                if (clientToChange == selfID) {
+                    chat.append("[System] Error: You cannot change your own name.\n");
+                } else {
+                    changedClients.put(clientToChange, newName);
+                    updateClientList(changedClients, false);
+                    chat.append("[System] Client " + clientToChange + "'s name has been changed to: " + newName + "\n");
+                }
+            } else {
             toServer.writeObject(msg);
             toServer.flush();
+            }
         }
     }
 
