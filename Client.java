@@ -6,8 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import javax.swing.*;
-
-public class Client {
+public class Client implements ActionListener {
 
     final static String hostConfigPath = "C:\\GitHub\\OnlineChatPrototype\\Host.config";
     final static String portConfigPath = "C:\\GitHub\\OnlineChatPrototype\\Port.config";
@@ -23,8 +22,6 @@ public class Client {
     private JScrollPane scroller;
     private JTextField input;
     private JTextArea clientList;
-    private JScrollPane listScroller;
-
     private volatile boolean attemptingReconnect = false;
     private volatile boolean windowOpen = true;
 
@@ -34,9 +31,11 @@ public class Client {
         window = new JFrame("Chat");
         scroller = new JScrollPane(chat, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         clientList = new JTextArea(31, 9);
-
+        chat.setLineWrap(true);
+        chat.setWrapStyleWord(true);
         try {
-            chat.setText("[System] Connecting to: " + new String(Files.readAllBytes(Paths.get(hostConfigPath))) + "...\n");
+            chat.setText("Press CTRL + D to toggle dark mode.\n");
+            chat.append("[System] Connecting to: " + new String(Files.readAllBytes(Paths.get(hostConfigPath))) + "...\n");
         } catch (IOException e) {
             e.printStackTrace(System.err);
         }
@@ -53,6 +52,7 @@ public class Client {
                             ex.printStackTrace(System.err);
                         }
                         chat.append("You: " + input.getText() + "\n");
+                        chat.setCaretPosition(chat.getDocument().getLength());
                         input.setText("");
                     }
                 }
@@ -85,6 +85,44 @@ public class Client {
                     ex.printStackTrace(System.err);
                 }
                 System.exit(0);
+            }
+        });
+        input.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_D) {
+                    if (chat.getBackground() == Color.BLACK) {
+                        setDarkMode(false);
+                    } else {
+                        setDarkMode(true);
+                    }
+                }
+            }
+        });
+
+        chat.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_D) {
+                    if (chat.getBackground() == Color.BLACK) {
+                        setDarkMode(false);
+                    } else {
+                        setDarkMode(true);
+                    }
+                }
+            }
+        });
+
+        clientList.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_D) {
+                    if (chat.getBackground() == Color.BLACK) {
+                        setDarkMode(false);
+                    } else {
+                        setDarkMode(true);
+                    }
+                }
             }
         });
 
@@ -138,6 +176,7 @@ public class Client {
                 fromServer.close();
                 toServer.close();
                 client.close();
+                clientList.setText("");
             }
         } catch (IOException ex) {
             ex.printStackTrace(System.err);
@@ -166,8 +205,10 @@ public class Client {
             if (msg.contains("[Server] Welcome: Client")) {
                 selfID = Integer.parseInt(msg.substring(24).trim());
                 chat.append(msg + "\n");
+                chat.setCaretPosition(chat.getDocument().getLength());
             } else {
                 chat.append(msg + "\n");
+                chat.setCaretPosition(chat.getDocument().getLength());
             }
         } else if (obj instanceof HashMap) {
             @SuppressWarnings("unchecked")
@@ -182,6 +223,7 @@ public class Client {
         for (var entry : clientMap.entrySet()) {
             if (entry.getKey() != selfID) {
                 clientList.append(entry.getValue() + "\n");
+                
             }
         }
     }
@@ -193,7 +235,27 @@ public class Client {
         }
     }
 
+    private void setDarkMode(boolean dark) {
+        Color bg = dark ? Color.BLACK : Color.WHITE;
+        Color fg = dark ? Color.WHITE : Color.BLACK;
+        
+        chat.setBackground(bg);
+        chat.setForeground(fg);
+        scroller.getViewport().setBackground(bg);
+        
+        clientList.setBackground(bg);
+        clientList.setForeground(fg);
+        
+        input.setBackground(bg);
+        input.setForeground(fg);
+    }
+
     public static void main(String[] args) {
         new Client();
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        //ignore
     }
 }
