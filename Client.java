@@ -182,7 +182,7 @@ public class Client implements ActionListener {
                     while (!client.isClosed()) {
                         receive();
                     }
-                } catch (SocketException e) {
+                } catch (SocketException | EOFException e) {
                     chat.append("\n[System] Server connection lost.\n");
                     chat.setCaretPosition(chat.getDocument().getLength());
                     clientList.setText("Client List");
@@ -204,7 +204,7 @@ public class Client implements ActionListener {
 
     private void handleServerDisconnect() {
         try {
-            if (client != null && !client.isClosed()) {
+            if (client != null && !client.isClosed() && fromServer != null && toServer != null) {
                 fromServer.close();
                 toServer.close();
                 client.close();
