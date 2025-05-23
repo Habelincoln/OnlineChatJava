@@ -24,6 +24,7 @@ public class Client implements ActionListener {
     private JTextArea clientList;
     private volatile boolean attemptingReconnect = false;
     private volatile boolean windowOpen = true;
+    private volatile boolean isDarkMode = false;
 
     private HashMap<Integer, String> changedClients = new HashMap<>();
     private HashMap<Integer, String> tempMap = new HashMap<>();
@@ -36,9 +37,15 @@ public class Client implements ActionListener {
         clientList = new JTextArea(31, 9);
         chat.setLineWrap(true);
         chat.setWrapStyleWord(true);
+        chat.setFont(new Font("ARIAL", Font.PLAIN, 15));
+        clientList.setFont(new Font("ARIAL", Font.PLAIN, 15));
+        clientList.setText("Client List");
+        input.setFont(new Font("ARIAL", Font.PLAIN, 15));
+
+
+
         try {
-            chat.setText("Press CTRL + D to toggle dark mode.\n");
-            chat.append("Use /setName <ID> <New Name> to change a client's name.\n");
+            chat.append("[System] Use /help to view all commands.\n");
             chat.append("[System] Connecting to: " + new String(Files.readAllBytes(Paths.get(hostConfigPath))) + "...\n");
         } catch (IOException e) {
             e.printStackTrace(System.err);
@@ -67,7 +74,8 @@ public class Client implements ActionListener {
 
         chat.setEditable(false);
         clientList.setEditable(false);
-
+        input.requestFocusInWindow();
+        
         window.setVisible(true);
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.setLocationRelativeTo(null);
@@ -119,6 +127,20 @@ public class Client implements ActionListener {
             }
         });
 
+        chat.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+            input.requestFocusInWindow();
+            }
+        });
+
+        clientList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+            input.requestFocusInWindow();
+            }
+        });
+
         clientList.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -160,6 +182,8 @@ public class Client implements ActionListener {
                     }
                 } catch (SocketException e) {
                     chat.append("[System] Server connection lost.\n");
+                    chat.setCaretPosition(chat.getDocument().getLength());
+                    clientList.setText("Client List");
                     handleServerDisconnect();
                 } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace(System.err);
@@ -270,22 +294,89 @@ public class Client implements ActionListener {
         
     }
 
-    public void send(String msg) throws IOException {
-        if (client != null && !client.isClosed()) {
+    public void send(String msg) throws IOException {  
+        
+        if (msg.length() == 0) {
+            //don't send
+        } else if (msg.length() >=8 && msg.substring(0,8).toLowerCase().equals("/setname")) {
+            int firstSpace = msg.indexOf(' ', 8);
+            int secondSpace = msg.indexOf(' ', firstSpace + 1);
+            int clientToChange = Integer.parseInt(msg.substring(firstSpace + 1, secondSpace));
+            String newName = msg.substring(secondSpace + 1) + " (" + clientToChange + ")";
             
-            if (msg.length() >=8 && msg.substring(0,8).equals("/setName")) {
-                int firstSpace = msg.indexOf(' ', 8);
-                int secondSpace = msg.indexOf(' ', firstSpace + 1);
-                int clientToChange = Integer.parseInt(msg.substring(firstSpace + 1, secondSpace));
-                String newName = msg.substring(secondSpace + 1) + " (" + clientToChange + ")";
-                if (clientToChange == selfID) {
-                    chat.append("[System] Error: You cannot change your own name.\n");
-                } else {
-                    changedClients.put(clientToChange, newName);
-                    updateClientList(changedClients, false);
-                    chat.append("[System] Client " + clientToChange + "'s name has been changed to: " + newName + "\n");
-                }
+            if (clientToChange == selfID) {
+                chat.append("[System] Error: You cannot change your own name.\n");
+
+            } else if (!tempMap.containsKey(clientToChange)) {
+                chat.append("[System] Error: Client " + clientToChange + " does not exist.\n");
+
             } else {
+                changedClients.put(clientToChange, newName);
+                updateClientList(changedClients, false);
+                chat.append("[System] Client " + clientToChange + "'s name has been changed to: " + newName + "\n");
+                chat.setCaretPosition(chat.getDocument().getLength());
+            }
+
+        } else if (msg.length() >=9 && msg.toLowerCase().startsWith("/darkmode")) {
+
+            if (isDarkMode){setDarkMode(false);}
+            else {setDarkMode(true);}
+
+        } else if (msg.length() >= 5 && msg.toLowerCase().startsWith("/help")) {
+            chat.append("\n");
+            chat.append("[System] Commands:\n");
+            chat.append("[System] /help - View all commands.\n");
+            chat.append("[System] /setName <clientID> <newName> - Change the name of a client.\n");
+            chat.append("[System] /darkMode - Toggle dark mode.\n");
+            chat.append("[System] /clear - Clear Chat.\n");
+            chat.append("[System] /resetName - Reset all names.\n");
+            chat.append("[System] /resetName <clientID> - Reset one client's name.\n");
+            chat.setCaretPosition(chat.getDocument().getLength());
+        } else if (msg.length() >= 6 && msg.toLowerCase().startsWith("/clear")) {
+            String[] lines = chat.getText().split("\n");
+            StringBuilder sb = new StringBuilder();
+            for (String line : lines) {
+                if (line.startsWith("[System]")) {
+                    if (!line.contains("name has been changed to:") && !line.contains("name has been reset.") && !line.contains("Error:")) {
+                        sb.append(line).append("\n");
+                    }
+                }
+            }
+            chat.setText(sb.toString());
+            chat.setCaretPosition(chat.getDocument().getLength());
+        } else if (msg.toLowerCase().startsWith("/resetname")) {
+            String[] parts = msg.trim().split(" "); // split by whitespace
+            int clientToChange = -1;
+
+            if (parts.length < 2) {
+                changedClients.clear();
+                updateClientList(changedClients, false);
+            } else if (parts.length > 2) {
+                chat.append("[System] Error: \"" + msg + "\" is not a valid command.\n");
+            } else {
+                try {
+                    clientToChange = Integer.parseInt(parts[1]);
+
+                    if (clientToChange == selfID) {
+                        chat.append("[System] Error: You cannot change your own name.\n");
+                    } else {
+                        changedClients.remove(clientToChange);
+                        updateClientList(changedClients, false);
+                        chat.append("[System] Client " + clientToChange + "'s name has been reset.\n");
+                    }
+
+                } catch (NumberFormatException e) {
+                    chat.append("[System] Error: \"" + parts[1] + "\" is not a valid number.\n");
+                }
+            }
+
+            chat.setCaretPosition(chat.getDocument().getLength());
+        } else if (msg.length() >= 1 && msg.substring(0,1).equals("/")) {
+            chat.append("[System] Error: \"" + msg + "\" is not a valid command.\n");
+            chat.setCaretPosition(chat.getDocument().getLength());
+        } else {
+            if (client != null && !client.isClosed()) {
+                
             toServer.writeObject(msg);
             toServer.flush();
             }
@@ -305,6 +396,7 @@ public class Client implements ActionListener {
         
         input.setBackground(bg);
         input.setForeground(fg);
+        isDarkMode = dark;
     }
 
     public static void main(String[] args) {
