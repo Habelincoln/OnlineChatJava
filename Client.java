@@ -1,4 +1,5 @@
 import java.awt.*;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.*;
 import java.io.*;
 import java.net.*;
@@ -25,6 +26,7 @@ public class Client implements ActionListener {
     private volatile boolean attemptingReconnect = false;
     private volatile boolean windowOpen = true;
     private volatile boolean isDarkMode = false;
+    private volatile boolean deleteconfirmation = false;
 
     private HashMap<Integer, String> changedClients = new HashMap<>();
     private HashMap<Integer, String> tempMap = new HashMap<>();
@@ -46,7 +48,7 @@ public class Client implements ActionListener {
 
         try {
             chat.append("[System] Use /help to view all commands.\n");
-            chat.append("[System] Connecting to: " + new String(Files.readAllBytes(Paths.get(hostConfigPath))) + "...\n");
+            chat.append("\n[System] Connecting to: " + new String(Files.readAllBytes(Paths.get(hostConfigPath))) + "...\n");
         } catch (IOException e) {
             e.printStackTrace(System.err);
         }
@@ -175,13 +177,13 @@ public class Client implements ActionListener {
             Thread serverConnectThread = new Thread(() -> {
                 try {
                     if (client.isConnected()) {
-                        chat.append("[System] Connected to server!\n");
+                        chat.append("\n[System] Connected to server!\n");
                     }
                     while (!client.isClosed()) {
                         receive();
                     }
                 } catch (SocketException e) {
-                    chat.append("[System] Server connection lost.\n");
+                    chat.append("\n[System] Server connection lost.\n");
                     chat.setCaretPosition(chat.getDocument().getLength());
                     clientList.setText("Client List");
                     handleServerDisconnect();
@@ -305,15 +307,15 @@ public class Client implements ActionListener {
             String newName = msg.substring(secondSpace + 1) + " (" + clientToChange + ")";
             
             if (clientToChange == selfID) {
-                chat.append("[System] Error: You cannot change your own name.\n");
+                chat.append("\n[System] Error: You cannot change your own name.\n");
 
             } else if (!tempMap.containsKey(clientToChange)) {
-                chat.append("[System] Error: Client " + clientToChange + " does not exist.\n");
+                chat.append("\n[System] Error: Client " + clientToChange + " does not exist.\n");
 
             } else {
                 changedClients.put(clientToChange, newName);
                 updateClientList(changedClients, false);
-                chat.append("[System] Client " + clientToChange + "'s name has been changed to: " + newName + "\n");
+                chat.append("\n[System] Client " + clientToChange + "'s name has been changed to: " + newName + "\n");
                 chat.setCaretPosition(chat.getDocument().getLength());
             }
 
@@ -327,18 +329,55 @@ public class Client implements ActionListener {
             chat.append("[System] Commands:\n");
             chat.append("[System] /help - View all commands.\n");
             chat.append("[System] /setName <clientID> <newName> - Change the name of a client.\n");
-            chat.append("[System] /darkMode - Toggle dark mode.\n");
-            chat.append("[System] /clear - Clear Chat.\n");
+            chat.append("[System] /darkMode (or CTRL + D) - Toggle dark mode.\n");
+            chat.append("[System] /clear - Clear chat.\n");
             chat.append("[System] /resetName - Reset all names.\n");
             chat.append("[System] /resetName <clientID> - Reset one client's name.\n");
+            chat.append("[System] /copy - Copy chat log to clipboard.\n");
+            chat.append("[System] /exit - Exit the program.\n");
+            chat.append("[System] /save - Save chat log to files.\n");
+            chat.append("[System] /save <logName> - Save chat log to files with custom name.\n");
+            chat.append("[System] /viewLogs - View all saved logs.\n");
+            chat.append("[System] /load <logName> - Load a specific log.\n");
+            chat.append("[System] /load - Load the latest default named chat log.\n");
+            chat.append("[System] /deleteLog <logName> - Delete a specific log.\n");
+            chat.append("[System] /deleteLogs - Delete all chat logs.\n");
+            
             chat.setCaretPosition(chat.getDocument().getLength());
         } else if (msg.length() >= 6 && msg.toLowerCase().startsWith("/clear")) {
-            String[] lines = chat.getText().split("\n");
             StringBuilder sb = new StringBuilder();
+            String[] lines = chat.getText().split("\n");
+            boolean foundWelcome = false;
+            boolean foundConnected = false;
             for (String line : lines) {
-                if (line.startsWith("[System]")) {
-                    if (!line.contains("name has been changed to:") && !line.contains("name has been reset.") && !line.contains("Error:")) {
+                if (line.contains("[System] Use /help to view all commands.")) {
+                    sb.append(line).append("\n");
+                    foundWelcome = true;
+                } else if (line.contains("\n[System] Connecting to:")) {
+                    if (client != null && client.isConnected() && !client.isClosed()) {
+                        sb.append("\n[System] Connected to server!\n");
+                        foundConnected = true;
+                    } else {
                         sb.append(line).append("\n");
+                        foundConnected = true;
+                    }
+                } else if (line.contains("\n[System] Connected to server!")) {
+                    sb.append(line).append("\n");
+                    foundConnected = true;
+                }
+            }
+            if (!foundWelcome) {
+                sb.append("[System] Use /help to view all commands.\n");
+            }
+            if (!foundConnected) {
+                if (client != null && client.isConnected() && !client.isClosed()) {
+                    sb.append("\n[System] Connected to server!\n");
+                } else {
+                    try {
+                        String host = new String(Files.readAllBytes(Paths.get(hostConfigPath)));
+                        sb.append("\n[System] Connecting to: " + host + "...\n");
+                    } catch (IOException e) {
+                        sb.append("\n[System] Connecting to: ...\n");
                     }
                 }
             }
@@ -352,27 +391,230 @@ public class Client implements ActionListener {
                 changedClients.clear();
                 updateClientList(changedClients, false);
             } else if (parts.length > 2) {
-                chat.append("[System] Error: \"" + msg + "\" is not a valid command.\n");
+                chat.append("\n[System] Error: \"" + msg + "\" is not a valid command.\n");
             } else {
                 try {
                     clientToChange = Integer.parseInt(parts[1]);
 
                     if (clientToChange == selfID) {
-                        chat.append("[System] Error: You cannot change your own name.\n");
+                        chat.append("\n[System] Error: You cannot change your own name.\n");
                     } else {
                         changedClients.remove(clientToChange);
                         updateClientList(changedClients, false);
-                        chat.append("[System] Client " + clientToChange + "'s name has been reset.\n");
+                        chat.append("\n[System] Client " + clientToChange + "'s name has been reset.\n");
                     }
 
                 } catch (NumberFormatException e) {
-                    chat.append("[System] Error: \"" + parts[1] + "\" is not a valid number.\n");
+                    chat.append("\n[System] Error: \"" + parts[1] + "\" is not a valid number.\n");
                 }
             }
 
             chat.setCaretPosition(chat.getDocument().getLength());
-        } else if (msg.length() >= 1 && msg.substring(0,1).equals("/")) {
-            chat.append("[System] Error: \"" + msg + "\" is not a valid command.\n");
+        } else if(msg.toLowerCase().startsWith("/copy")) {
+
+            StringSelection stringSelection = new StringSelection(chat.getText());
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
+            chat.append("\n[System] Chat copied to clipboard.\n");
+            chat.setCaretPosition(chat.getDocument().getLength());
+        } else if (msg.toLowerCase().startsWith("/exit")) {
+            chat.append("\n[System] Exiting...\n");
+            chat.setCaretPosition(chat.getDocument().getLength());
+            windowOpen = false;
+            attemptingReconnect = false;
+            try {
+                if (client != null && !client.isClosed()) {
+                    client.close();
+                }
+            } catch (IOException ex) {
+                ex.printStackTrace(System.err);
+
+            }
+
+         } else if (msg.toLowerCase().equals("/save")) {
+                    try {
+                    File saveDir = new File("Saves");
+                    if (!saveDir.exists()) {
+                        saveDir.mkdirs();
+                    }
+                    String fileName = "chat_log_" + System.currentTimeMillis() + ".txt";
+                    File saveFile = new File(saveDir, fileName);
+                    try (BufferedWriter writer = new BufferedWriter(new FileWriter(saveFile))) {
+                        writer.write(chat.getText());
+                    }
+                    Thread.sleep(100);
+                    chat.append("\n[System] Chat saved to " + saveFile.getPath() + "\n");
+                    } catch (IOException | InterruptedException e) {
+                    chat.append("\n[System] Error saving chat log.\n");
+                    }
+                    chat.setCaretPosition(chat.getDocument().getLength());
+
+            } else if (msg.toLowerCase().startsWith("/save")) {
+                String[] parts = msg.split(" ");
+                if (parts.length == 2) {
+                    String fileName = parts[1];
+                    if (!fileName.toLowerCase().endsWith(".txt")) {
+                        fileName += ".txt";
+                    }
+                    File saveDir = new File("Saves");
+                    if (!saveDir.exists()) {
+                        saveDir.mkdirs();
+                    }
+                    File saveFile = new File(saveDir, fileName);
+                    try (BufferedWriter writer = new BufferedWriter(new FileWriter(saveFile))) {
+                        writer.write(chat.getText());
+                    }
+                    chat.append("\n[System] Chat saved to " + saveFile.getPath() + "\n");
+                } else {
+                    chat.append("\n[System] Error: Invalid command format. Use /save <filename>\n");
+                }
+            }
+            
+            else if (msg.toLowerCase().equals("/load")) {
+                
+                File saveDir = new File("Saves");
+                if (!saveDir.exists() || !saveDir.isDirectory()) {
+                    chat.append("\n[System] No save directory found.\n");
+                } else {
+                    File[] files = saveDir.listFiles((dir, name) -> name.startsWith("chat_log_") && name.endsWith(".txt"));
+                    if (files == null || files.length == 0) {
+                        chat.append("\n[System] No chat logs found.\n");
+                    } else {
+                        File latest = files[0];
+                        for (File f : files) {
+                            if (f.lastModified() > latest.lastModified()) {
+                                latest = f;
+                            }
+                        }
+                        try (BufferedReader reader = new BufferedReader(new FileReader(latest))) {
+                            StringBuilder sb = new StringBuilder();
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                sb.append(line).append("\n");
+                            }
+                            chat.setText("[System] Loaded chat from " + latest.getPath() + "\n\n");
+                            chat.append(sb.toString());
+                            
+                        } catch (IOException e) {
+                            chat.append("\n[System] Error loading chat log.\n");
+                        }
+                    }
+                }
+                chat.setCaretPosition(chat.getDocument().getLength());
+            } else if (msg.toLowerCase().startsWith("/load ")) {
+                String[] parts = msg.split(" ", 2);
+                if (parts.length == 2) {
+                    String fileName = parts[1].trim();
+                    if (!fileName.toLowerCase().endsWith(".txt")) {
+                        fileName += ".txt";
+                    }
+                    File saveDir = new File("Saves");
+                    File loadFile = new File(saveDir, fileName);
+                    if (!loadFile.exists() || !loadFile.isFile()) {
+                        chat.append("\n[System] Error: File \"" + fileName + "\" does not exist.\n");
+                    } else {
+                        try (BufferedReader reader = new BufferedReader(new FileReader(loadFile))) {
+                            StringBuilder sb = new StringBuilder();
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                sb.append(line).append("\n");
+                            }
+                            chat.setText("[System] Loaded chat from " + loadFile.getPath() + "\n\n");
+                            chat.append(sb.toString());
+                        } catch (IOException e) {
+                            chat.append("\n[System] Error loading chat log.\n");
+                        }
+                    }
+                } else {
+                    chat.append("\n[System] Error: Invalid command format. Use /load <filename> or /load to load latest default log\n");
+                }
+                chat.setCaretPosition(chat.getDocument().getLength());
+            }
+            
+            
+            
+            
+            else if (msg.toLowerCase().equals("/viewlogs")) {
+                File saveDir = new File("Saves");
+                if (!saveDir.exists() || !saveDir.isDirectory()) {
+                    chat.append("\n[System] No save directory found.\n");
+                } else {
+                    String[] files = saveDir.list();
+                    if (files != null && files.length > 0) {
+                        chat.append("\n[System] Available logs:\n");
+                        for (String file : files) {
+                            chat.append(file + "\n");
+                        }
+                    } else {
+                        chat.append("\n[System] No logs available.\n");
+                    }
+                }
+                chat.setCaretPosition(chat.getDocument().getLength());
+            }
+
+            else if (msg.toLowerCase().startsWith("/deletelog ")) {
+                String[] parts = msg.split(" ");
+                if (parts.length != 2) {
+                    chat.append("\n[System] Error: Invalid command format. Use /deletelog <filename.txt> or use /deleteLogs to delete all logs. \n");
+                    chat.setCaretPosition(chat.getDocument().getLength());
+                } else {
+                    String fileName = parts[1];
+                    if (!fileName.toLowerCase().endsWith(".txt")) {
+                        fileName += ".txt";
+                    }
+                    File fileToDelete = new File("Saves", fileName);
+                    if (!fileToDelete.exists() || !fileToDelete.isFile()) {
+                        chat.append("\n[System] Error: File \"" + fileName + "\" does not exist.\n");
+                    } else {
+                        if (fileToDelete.delete()) {
+                            chat.append("\n[System] Deleted: " + fileName + "\n");
+                        } else {
+                            chat.append("\n[System] Failed to delete: " + fileName + "\n");
+                        }
+                    }
+                    chat.setCaretPosition(chat.getDocument().getLength());
+                }
+            }
+            
+            else if (msg.toLowerCase().equals("/deletelogs")) {
+                if (!deleteconfirmation) {
+                    chat.append("\n[System] Are you sure you want to permanently delete all chat logs?\n");
+                    chat.append("\n[System] Retype command to confirm.\n");
+                    chat.setCaretPosition(chat.getDocument().getLength());
+                    deleteconfirmation = true;
+                } else {
+                    String[] files = new File("Saves").list();
+                    if (files != null) {
+                        for (String file : files) {
+                            File f = new File("Saves/" + file);
+                            if (f.delete()) {
+                                chat.append("\n[System] Deleted: " + file + "\n");
+                                chat.setCaretPosition(chat.getDocument().getLength());
+                            } else {
+                                chat.append("\n[System] Failed to delete: " + file + "\n");
+                                chat.setCaretPosition(chat.getDocument().getLength());
+                            }
+                        }
+                    } else {
+                        chat.append("\n[System] No files found.\n");
+                        chat.setCaretPosition(chat.getDocument().getLength());
+                    }
+                    deleteconfirmation = false;
+                }
+            }
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                else if (msg.length() >= 1 && msg.substring(0,1).equals("/")) {
+            chat.append("\n[System] Error: \"" + msg + "\" is not a valid command.\n");
             chat.setCaretPosition(chat.getDocument().getLength());
         } else {
             if (client != null && !client.isClosed()) {
