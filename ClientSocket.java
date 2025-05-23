@@ -3,9 +3,9 @@ import java.net.*;
 
 public class ClientSocket {
 
-    private Socket client;
-    private ObjectInputStream fromClient;
-    private ObjectOutputStream toClient;
+    final private Socket client;
+    final private ObjectInputStream fromClient;
+    final private ObjectOutputStream toClient;
     private int id;
 
     public ClientSocket(Socket socket) throws IOException {

@@ -213,6 +213,21 @@ public class Client implements ActionListener {
                 chat.append(msg + "\n");
                 chat.setCaretPosition(chat.getDocument().getLength());
             } else {
+                int firstSpace = msg.indexOf(' ');
+                int colonIndex = msg.indexOf(':');
+                if (firstSpace != -1 && colonIndex != -1 && colonIndex > firstSpace) {
+                    String clientIdStr = msg.substring(firstSpace + 1, colonIndex).trim();
+                    try {
+                        int clientId = Integer.parseInt(clientIdStr);
+                        if (changedClients.containsKey(clientId)) {
+                            String newName = changedClients.get(clientId);
+                            String oldPrefix = msg.substring(0, colonIndex + 1);
+                            msg = msg.replaceFirst("Client " + clientIdStr + ":", newName + ":");
+                        }
+                    } catch (NumberFormatException ignored) {
+                        // Not a client message, ignore
+                    }
+                }
                 chat.append(msg + "\n");
                 chat.setCaretPosition(chat.getDocument().getLength());
             }
@@ -223,13 +238,11 @@ public class Client implements ActionListener {
             tempMap = clientMap;
         }
     }
-
     private void updateClientList(HashMap<Integer, String> clientMap, boolean isNewList) {
         if (isNewList) {
             clientList.setText("Connected Clients: \n ______________\n");
             clientList.append("You (" + selfID + ")\n");
             for (var entry : clientMap.entrySet()) {
-                int key = entry.getKey();
                 if (entry.getKey() != selfID) {
                     if (changedClients.containsKey(entry.getKey())) {
                         clientList.append(changedClients.get(entry.getKey()) + "\n");
