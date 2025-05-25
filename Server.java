@@ -51,6 +51,9 @@ public class Server {
                             Object obj = client.receiveObject();
                             if (obj instanceof String msg && msg.length() > 0) {
                                 broadcastMessage("Client " + client.getID() + ": " + msg, client);
+                            } else if (obj instanceof byte[] image) {
+                                sendImage(image, client);
+                                System.out.println("Received image from client " + client.getID());
                             }
                         } catch (Exception e) {
                             System.out.println("Client " + client.getID() + " disconnected.");
@@ -97,6 +100,21 @@ public class Server {
                 if (client != except) {
                     try {
                         client.sendObject(msg);
+                    } catch (IOException e) {
+                        e.printStackTrace(System.err);
+                    }
+                }
+            }
+        }
+    }
+
+    private void sendImage(byte[] image, ClientSocket except) {
+        synchronized (connectedClients) {
+            for (ClientSocket client : connectedClients) {
+                if (client != except) {
+                    try {
+                        client.sendObject("image: " + except.getID());
+                        client.sendObject(image);
                     } catch (IOException e) {
                         e.printStackTrace(System.err);
                     }
