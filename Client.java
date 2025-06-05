@@ -12,6 +12,8 @@ import javax.imageio.*;
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.StyledDocument;
+
+//TODO: make separate changed clients list for self renames so those dont get reset when using resetName command, as those should be the new default name (maybe make it server side)
 public class Client implements ActionListener {
 
     final static String hostConfigPath = "C:\\GitHub\\OnlineChatPrototype\\Host.config";
@@ -19,6 +21,7 @@ public class Client implements ActionListener {
 
     private Socket client;
     private int selfID;
+    private String selfName = "You";
 
     private ObjectInputStream fromServer;
     private ObjectOutputStream toServer;
@@ -74,7 +77,7 @@ public class Client implements ActionListener {
                             ex.printStackTrace(System.err);
                         }
                         if (!message.substring(0,1).equals("/")) {
-                        append("You: " + input.getText() + "\n");
+                        append(selfName + ": " + input.getText() + "\n");
                         }
                         input.setText("");
                     }
@@ -255,7 +258,24 @@ public class Client implements ActionListener {
                 if (msg.contains("[Server] Welcome: Client")) {
                     selfID = Integer.parseInt(msg.substring(24).trim());
                     append(msg + "\n");
-                } else {
+                } else if (msg.contains("808:RENAME:")) {
+                    //  format is "808:RENAME:<id>:<newName>"
+                    String[] parts = msg.split(":", 4);
+                    if (parts.length == 4) {
+                        try {
+                            int sendingClient = Integer.parseInt(parts[2].trim());
+                            String newName = parts[3].trim() + " (" + parts[2] + ")";
+                            changedClients.put(sendingClient, newName);
+                            updateClientList(changedClients, false);
+                        } catch (NumberFormatException e) {
+                            append("\n[System] Error parsing client ID in rename message: " + msg + "\n");
+                        }
+                    } else {
+                        append("\n[System] Malformed rename message: " + msg + "\n");
+                    }
+                }
+    
+                else {
                     int firstSpace = msg.indexOf(' ');
                     int colonIndex = msg.indexOf(':');
                     if (firstSpace != -1 && colonIndex != -1 && colonIndex > firstSpace) {
@@ -268,7 +288,7 @@ public class Client implements ActionListener {
                                 msg = msg.replaceFirst("Client " + clientIdStr + ":", newName + ":");
                             }
                         } catch (NumberFormatException ignored) {
-                            // Not a client message, ignore
+                            // not a client message, ignore
                         }
                     }
                     append(msg + "\n");
@@ -323,7 +343,7 @@ public class Client implements ActionListener {
     private void updateClientList(HashMap<Integer, String> clientMap, boolean isNewList) {
         if (isNewList) {
             clientList.setText("Clients: \n ____________\n");
-            clientList.append("You (" + selfID + ")\n");
+            clientList.append(selfName + " (You)\n");
             for (var entry : clientMap.entrySet()) {
                 if (entry.getKey() != selfID) {
                     if (changedClients.containsKey(entry.getKey())) {
@@ -336,7 +356,7 @@ public class Client implements ActionListener {
             }
         } else {
             clientList.setText("Clients: \n ____________\n");
-            clientList.append("You (" + selfID + ")\n");
+            clientList.append(selfName + " (You)\n");
             for (var entry : tempMap.entrySet()) {
                 if (entry.getKey() != selfID) {
                     if (changedClients.containsKey(entry.getKey())) {
@@ -400,6 +420,9 @@ public class Client implements ActionListener {
             append("[System] /deleteLog <logName> - Delete a specific log.\n");
             append("[System] /deleteLogs - Delete all chat logs.\n");
             append("[System] /image - Send an image.\n");
+            append("[System] /self <newName> - Change your default display name for others.\n");
+            append("[System] /resetSelf - Reset your display name to the default.\n");
+
 
 
             
@@ -696,7 +719,7 @@ public class Client implements ActionListener {
                         BufferedImage image = ImageIO.read(selectedFile);
                         if (image != null) {
                             sendImage(image, selectedFile);
-                            append("\nYou:\n");
+                            append("\n" + selfName + ":\n");
                             JLabel imageLabel = new JLabel(new ImageIcon(image));
                             Image scaledImage = image.getScaledInstance(400, 400, Image.SCALE_SMOOTH);
                             imageLabel.setIcon(new ImageIcon(scaledImage));
@@ -718,7 +741,34 @@ public class Client implements ActionListener {
                 } else {
                     append("\n[System] Error: Cannot choose an image while disconnected from server.\n");
                 }
-            }
+            } 
+            
+            else if (msg.toLowerCase().startsWith("/self ")) {
+                String newName = msg.substring(6).trim();
+                send("808:RENAME:" + selfID + ":" + newName);
+                selfName = newName + " (" + selfID + ")";
+                changedClients.put(selfID, selfName);
+                updateClientList(changedClients, false);
+                append("\n[System] Your display name has been changed to: " + newName + "\n");
+                
+        }
+
+        else if (msg.toLowerCase().equals("/resetself ")) {
+                String newName = "Client " + selfID;
+                send("808:RENAME:" + selfID + ":" + newName);
+                selfName = newName + " (" + selfID + ")";
+                changedClients.put(selfID, selfName);
+                updateClientList(changedClients, false);
+                append("\n[System] Your display name has been reverted to: " + newName + "\n");
+                
+        }
+
+
+
+
+
+
+
                 
                 else if (msg.length() >= 1 && msg.substring(0,1).equals("/")) {
             append("\n[System] Error: \"" + msg + "\" is not a valid command.\n");

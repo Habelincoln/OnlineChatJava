@@ -50,7 +50,11 @@ public class Server {
                         try {
                             Object obj = client.receiveObject();
                             if (obj instanceof String msg && msg.length() > 0) {
+                                if (msg.contains("808:RENAME:")) {
+                                    broadcastMessage(msg, client);
+                                } else {
                                 broadcastMessage("Client " + client.getID() + ": " + msg, client);
+                                }
                             } else if (obj instanceof byte[] image) {
                                 sendImage(image, client);
                                 System.out.println("Received image from client " + client.getID());
