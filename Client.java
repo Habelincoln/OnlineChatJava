@@ -77,7 +77,7 @@ public class Client implements ActionListener {
                             ex.printStackTrace(System.err);
                         }
                         if (!message.substring(0,1).equals("/")) {
-                        append(selfName + ": " + input.getText() + "\n");
+                        append("You" + ": " + input.getText() + "\n");
                         }
                         input.setText("");
                     }
@@ -267,6 +267,7 @@ public class Client implements ActionListener {
                             String newName = parts[3].trim() + " (" + parts[2] + ")";
                             changedClients.put(sendingClient, newName);
                             updateClientList(changedClients, false);
+                            append("\n[System] Client " + sendingClient + " has changed its name to: " + newName + "\n");
                         } catch (NumberFormatException e) {
                             append("\n[System] Error parsing client ID in rename message: " + msg + "\n");
                         }
@@ -284,11 +285,19 @@ public class Client implements ActionListener {
                             int clientId = Integer.parseInt(clientIdStr);
                             if (changedClients.containsKey(clientId)) {
                                 String newName = changedClients.get(clientId);
-                                String oldPrefix = msg.substring(0, colonIndex + 1);
                                 msg = msg.replaceFirst("Client " + clientIdStr + ":", newName + ":");
                             }
                         } catch (NumberFormatException ignored) {
                             // not a client message, ignore
+                        }
+                    }
+                    // if theres 2 '('s in the msg, remove the second '(' and everything after it until the next ')'
+                    int firstParen = msg.indexOf('(');
+                    int secondParen = msg.indexOf('(', firstParen + 1);
+                    if (firstParen != -1 && secondParen != -1) {
+                        int closeParen = msg.indexOf(')', secondParen);
+                        if (closeParen != -1) {
+                            msg = msg.substring(0, secondParen) + msg.substring(closeParen + 1);
                         }
                     }
                     append(msg + "\n");
@@ -753,10 +762,11 @@ public class Client implements ActionListener {
                 
         }
 
-        else if (msg.toLowerCase().equals("/resetself ")) {
+        else if (msg.toLowerCase().equals("/resetself")) {
                 String newName = "Client " + selfID;
                 send("808:RENAME:" + selfID + ":" + newName);
-                selfName = newName + " (" + selfID + ")";
+                send("808:REVERT");
+                selfName = newName;
                 changedClients.put(selfID, selfName);
                 updateClientList(changedClients, false);
                 append("\n[System] Your display name has been reverted to: " + newName + "\n");

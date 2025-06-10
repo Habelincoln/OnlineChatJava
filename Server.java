@@ -10,6 +10,7 @@ public class Server {
     private ServerSocket server;
     private final List<ClientSocket> connectedClients = new ArrayList<>();
     private int nextClientId = 1;
+    private Map<Integer, String> clientNames = new HashMap<>();
 
     public Server() {
         try {
@@ -31,6 +32,9 @@ public class Server {
                         }
                         newClient.sendObject("[Server] Welcome: Client " + clientId);
                         broadcastClientList();
+                        for (int key : clientNames.keySet()) {
+                            newClient.sendObject("808:RENAME:" + key + ":" + clientNames.get(key));
+                        }
                         broadcastMessage("[Server] Client " + clientId + " connected.", newClient);
                     } catch (IOException e) {
                         e.printStackTrace(System.err);
@@ -50,10 +54,21 @@ public class Server {
                         try {
                             Object obj = client.receiveObject();
                             if (obj instanceof String msg && msg.length() > 0) {
-                                if (msg.contains("808:RENAME:")) {
+                                if (msg.startsWith("808:RENAME:")) {
                                     broadcastMessage(msg, client);
-                                } else {
-                                broadcastMessage("Client " + client.getID() + ": " + msg, client);
+                                    clientNames.put(client.getID(), msg.split(":")[3]);
+                                } else if (msg.equals("808:REVERT")) {
+                                    clientNames.remove(client.getID());
+                                }
+                                    else {
+                                    if (!clientNames.containsKey(client.getID())) {
+
+                                        broadcastMessage("Client " + client.getID() + ": " + msg, client);
+
+                                    } else {
+                                        String name = clientNames.get(client.getID());
+                                        broadcastMessage(name + " (" + client.getID() + ")" + ": " + msg, client);
+                                    }
                                 }
                             } else if (obj instanceof byte[] image) {
                                 sendImage(image, client);
