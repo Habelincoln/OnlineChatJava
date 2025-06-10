@@ -258,7 +258,7 @@ public class Client implements ActionListener {
                 if (msg.contains("[Server] Welcome: Client")) {
                     selfID = Integer.parseInt(msg.substring(24).trim());
                     append(msg + "\n");
-                } else if (msg.contains("808:RENAME:")) {
+                } else if (msg.startsWith("808:RENAME:")) {
                     //  format is "808:RENAME:<id>:<newName>"
                     String[] parts = msg.split(":", 4);
                     if (parts.length == 4) {
@@ -274,9 +274,13 @@ public class Client implements ActionListener {
                     } else {
                         append("\n[System] Malformed rename message: " + msg + "\n");
                     }
-                }
-    
-                else {
+                } else if (msg.startsWith("808:WHISPER:")) {
+                    int sendingClient = Integer.parseInt(msg.split(":")[2]);
+                    String whisperedMsg = msg.split(":")[3];
+                    String senderName = changedClients.getOrDefault(sendingClient, "Client " + sendingClient);
+                    append("\n[ " + senderName + "  ->  You " + "]: " + whisperedMsg + "\n");
+
+                } else {
                     int firstSpace = msg.indexOf(' ');
                     int colonIndex = msg.indexOf(':');
                     if (firstSpace != -1 && colonIndex != -1 && colonIndex > firstSpace) {
@@ -431,6 +435,7 @@ public class Client implements ActionListener {
             append("[System] /image - Send an image.\n");
             append("[System] /self <newName> - Change your default display name for others.\n");
             append("[System] /resetSelf - Reset your display name to the default.\n");
+            append("[System] /whisper <Target ID or Name> <Message> - Send a message to one person\n");
 
 
 
@@ -771,6 +776,52 @@ public class Client implements ActionListener {
                 updateClientList(changedClients, false);
                 append("\n[System] Your display name has been reverted to: " + newName + "\n");
                 
+        } else if (msg.toLowerCase().startsWith("/whisper ")) {
+            String[] parts = msg.split(" ", 3);
+            if (parts.length < 3) {
+                append("\n[System] Error: Invalid whisper command format. Use /whisper <Target ID or Name> <Message>\n");
+            } else {
+                String target = parts[1];
+                String message = parts[2];
+                int targetID = -1;
+                try {
+                    targetID = Integer.parseInt(target);
+                } catch (NumberFormatException e) {
+                    // not a number, check if it's a name
+                    for (var entry : tempMap.entrySet()) {
+                        String name = entry.getValue();
+                        // also check changedClients for renamed clients
+                        if (changedClients.containsKey(entry.getKey())) {
+                            name = changedClients.get(entry.getKey());
+                        }
+                        
+                        if (name.equalsIgnoreCase(target) || name.toLowerCase().startsWith(target.toLowerCase() + " ")) {
+                            targetID = entry.getKey();
+                            break;
+                        }
+                    }
+                    
+
+
+                }
+
+                if (targetID == -1) {
+                    
+                    append("\n[System] Error:  \"" + target + "\" not found.\n");
+
+                } else if (!tempMap.containsKey(targetID)) {
+                    append("\n[System] Error: \"" + target + "\" is not connected.\n");
+                } else if (targetID == selfID) {
+                    append("\n[System] Error: You cannot whisper to yourself.\n");
+
+                } else {
+                    toServer.writeObject("808:WHISPER:" + targetID + ":" + message);
+                    toServer.flush();
+                    String displayName;
+                    displayName = changedClients.getOrDefault(targetID, "Client " + targetID);
+                    append("\n[ You -> " + displayName + " ]: " + message + "\n");
+                }
+            }
         }
 
 

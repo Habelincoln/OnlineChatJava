@@ -59,6 +59,10 @@ public class Server {
                                     clientNames.put(client.getID(), msg.split(":")[3]);
                                 } else if (msg.equals("808:REVERT")) {
                                     clientNames.remove(client.getID());
+                                } else if (msg.startsWith("808:WHISPER:")) {
+                                    int targetID = Integer.parseInt(msg.split(":")[2]);
+                                    String whisperedMsg = msg.split(":")[3];
+                                    whisperMsg(targetID, whisperedMsg, client);
                                 }
                                     else {
                                     if (!clientNames.containsKey(client.getID())) {
@@ -134,6 +138,20 @@ public class Server {
                     try {
                         client.sendObject("image: " + except.getID());
                         client.sendObject(image);
+                    } catch (IOException e) {
+                        e.printStackTrace(System.err);
+                    }
+                }
+            }
+        }
+    }
+
+    private void whisperMsg(int targetID, String msg, ClientSocket sendingClient) {
+        synchronized (connectedClients) {
+            for (ClientSocket client : connectedClients) {
+                if (client.getID() == targetID) {
+                    try {
+                        client.sendObject("808:WHISPER:" + sendingClient.getID() + ":" + msg);
                     } catch (IOException e) {
                         e.printStackTrace(System.err);
                     }
