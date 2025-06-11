@@ -247,6 +247,7 @@ public class Client implements ActionListener {
                     }
                 }
             });
+            
             reconnectThread.start();
         }
     }
@@ -315,8 +316,7 @@ public class Client implements ActionListener {
             HashMap<Integer, String> clientMap = (HashMap<Integer, String>) obj;
             updateClientList(clientMap, true);
             tempMap = clientMap;
-        } else if (obj instanceof byte[]) {
-            byte[] imageBytes = (byte[]) obj;
+        } else if (obj instanceof byte[] imageBytes) {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
 
             File tempImagesDir = new File("Saves", "current_session_images");
@@ -324,7 +324,7 @@ public class Client implements ActionListener {
             // make folder hidden for windows
             try {
                 java.nio.file.Files.setAttribute(tempImagesDir.toPath(), "dos:hidden", true);
-            } catch (Exception ignore) {}
+            } catch (IOException ignore) {}
             File receivedFile = new File(tempImagesDir, "received_" + System.currentTimeMillis() + ".png");
             try (FileOutputStream fos = new FileOutputStream(receivedFile)) {
                 fos.write(imageBytes);
@@ -332,7 +332,7 @@ public class Client implements ActionListener {
                 // set file as hidden for windows
                 try {
                     java.nio.file.Files.setAttribute(receivedFile.toPath(), "dos:hidden", true);
-                } catch (Exception ignore) {}
+                } catch (IOException ignore) {}
                 sentImages.add(receivedFile);
             } catch (IOException e) {
                 e.printStackTrace(System.err);
@@ -722,7 +722,7 @@ public class Client implements ActionListener {
                 }
             }
 
-            else if (msg.toLowerCase().startsWith("/image")) {
+            else if (msg.toLowerCase().equalsIgnoreCase("/image")) {
                 if (fromServer != null) {
                     FileDialog fileDialog = new FileDialog(window, "Select an image to send", FileDialog.LOAD);
                     fileDialog.setVisible(true);
@@ -800,9 +800,6 @@ public class Client implements ActionListener {
                             break;
                         }
                     }
-                    
-
-
                 }
 
                 if (targetID == -1) {
@@ -889,33 +886,33 @@ public class Client implements ActionListener {
     }
 
     private void saveSentImagesWithLogName(String logFilePath) {
-    if (sentImages.isEmpty()) return;
-    File logFile = new File(logFilePath);
-    File parentDir = logFile.getParentFile();
-    String baseName = logFile.getName();
-    if (baseName.toLowerCase().endsWith(".txt")) {
-        baseName = baseName.substring(0, baseName.length() - 4);
-    }
-    File imagesDir = new File(parentDir, baseName + "_images");
-    imagesDir.mkdirs();
-    int count = 1;
-    for (File img : sentImages) {
-        File dest = new File(imagesDir, "image_" + (count++) + ".png");
-        try (
-            FileInputStream in = new FileInputStream(img);
-            FileOutputStream out = new FileOutputStream(dest)
-        ) {
-            byte[] buf = new byte[4096];
-            int len;
-            while ((len = in.read(buf)) > 0) {
-                out.write(buf, 0, len);
+        if (sentImages.isEmpty()) return;
+        File logFile = new File(logFilePath);
+        File parentDir = logFile.getParentFile();
+        String baseName = logFile.getName();
+        if (baseName.toLowerCase().endsWith(".txt")) {
+            baseName = baseName.substring(0, baseName.length() - 4);
+        }
+        File imagesDir = new File(parentDir, baseName + "_images");
+        imagesDir.mkdirs();
+        int count = 1;
+        for (File img : sentImages) {
+            File dest = new File(imagesDir, "image_" + (count++) + ".png");
+            try (
+                FileInputStream in = new FileInputStream(img);
+                FileOutputStream out = new FileOutputStream(dest)
+            ) {
+                byte[] buf = new byte[4096];
+                int len;
+                while ((len = in.read(buf)) > 0) {
+                    out.write(buf, 0, len);
+                }
+                out.getFD().sync(); 
+            } catch (IOException e) {
+                append("\n[System] Error saving image: " + img.getName() + "\n");
             }
-            out.getFD().sync(); 
-        } catch (IOException e) {
-            append("\n[System] Error saving image: " + img.getName() + "\n");
         }
     }
-}
 
     public static void main(String[] args) {
         new Client();
