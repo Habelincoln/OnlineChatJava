@@ -35,9 +35,11 @@ public class Client implements ActionListener {
     private volatile boolean windowOpen = true;
     private volatile boolean isDarkMode = false;
     private volatile boolean deleteconfirmation = false;
+    private volatile boolean unblockConfirmation = false;
 
     private HashMap<Integer, String> changedClients = new HashMap<>();
     private HashMap<Integer, String> tempMap = new HashMap<>();
+    private List <Integer> blockedClients = new ArrayList<>();
 
     private final List<File> sentImages = new ArrayList<>();
 
@@ -277,9 +279,11 @@ public class Client implements ActionListener {
                     }
                 } else if (msg.startsWith("808:WHISPER:")) {
                     int sendingClient = Integer.parseInt(msg.split(":")[2]);
-                    String whisperedMsg = msg.split(":")[3];
-                    String senderName = changedClients.getOrDefault(sendingClient, "Client " + sendingClient);
-                    append("\n[ " + senderName + "  ->  You " + "]: " + whisperedMsg + "\n");
+                    if (!blockedClients.contains(sendingClient)) {
+                        String whisperedMsg = msg.split(":")[3];
+                        String senderName = changedClients.getOrDefault(sendingClient, "Client " + sendingClient);
+                        append("\n[ " + senderName + "  ->  You " + "]: " + whisperedMsg + "\n");
+                    }   
 
                 } else {
                     int firstSpace = msg.indexOf(' ');
@@ -305,7 +309,35 @@ public class Client implements ActionListener {
                             msg = msg.substring(0, secondParen) + msg.substring(closeParen + 1);
                         }
                     }
-                    append(msg + "\n");
+                    
+                    // Extract client ID from message (either in parentheses or as "Client x")
+                    int clientId = -1;
+                    // Try to find (number)
+                    int parenStart = msg.indexOf('(');
+                    int parenEnd = msg.indexOf(')', parenStart);
+                    if (parenStart != -1 && parenEnd != -1) {
+                        String idStr = msg.substring(parenStart + 1, parenEnd).trim();
+                        try {
+                            clientId = Integer.parseInt(idStr);
+                        } catch (NumberFormatException ignored) {}
+                    }
+                    // If not found, try to extract after "Client "
+                    if (clientId == -1) {
+                        int clientIdx = msg.indexOf("Client ");
+                        if (clientIdx != -1) {
+                            int afterClient = clientIdx + 7;
+                            int colonIdx = msg.indexOf(':', afterClient);
+                            if (colonIdx != -1) {
+                                String idStr = msg.substring(afterClient, colonIdx).trim();
+                                try {
+                                    clientId = Integer.parseInt(idStr);
+                                } catch (NumberFormatException ignored) {}
+                            }
+                        }
+                    }
+                    if (clientId == -1 || !blockedClients.contains(clientId)) {
+                        append(msg + "\n");
+                    }
                 }
             } else {
                 int imageSendingClient = Integer.parseInt(msg.substring(7));
@@ -436,9 +468,10 @@ public class Client implements ActionListener {
             append("[System] /self <newName> - Change your default display name for others.\n");
             append("[System] /resetSelf - Reset your display name to the default.\n");
             append("[System] /whisper <Target ID or Name> <Message> - Send a message to one person\n");
-
-
-
+            append("[System] /block <Target ID or Name> - Block a user from sending you messages\n");
+            append("[System] /unblock <Target ID or Name> - Unblock a user from sending you messages\n");
+            append("[System] /unblockAll - Unblock all users.\n");
+            append("[System] /blockList - View all blocked users\n");
             
         } else if (msg.length() >= 6 && msg.toLowerCase().startsWith("/clear")) {
             sentImages.clear();
@@ -521,76 +554,39 @@ public class Client implements ActionListener {
             } catch (IOException ex) {
                 ex.printStackTrace(System.err);
 
-            }
-
-         } else if (msg.toLowerCase().equals("/save")) {
-            try {
-                String baseName = "chat_log_" + System.currentTimeMillis();
-                File saveDir = new File("Saves", baseName);
+            } 
+        } else if (msg.toLowerCase().equals("/save")) {
+                try {
+                String baseName = "chat_log_" + System.currentTimeMillis() + ".txt";
+                File saveDir = new File("Saves");
                 if (!saveDir.exists()) saveDir.mkdirs();
-                File saveFile = new File(saveDir, baseName + ".txt");
+                File saveFile = new File(saveDir, baseName);
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(saveFile))) {
                     writer.write(chat.getText());
                 }
-                saveSentImagesWithLogName(saveFile.getPath());
-                append("\n[System] Chat and images saved to " + saveFile.getPath() + "\n");
-            } catch (IOException e) {
+                append("\n[System] Chat saved to " + saveFile.getPath() + "\n");
+                } catch (IOException e) {
                 append("\n[System] Error saving chat log.\n");
-            }
-        } else if (msg.toLowerCase().startsWith("/save ")) {
-            String[] parts = msg.split(" ");
-            if (parts.length == 2) {
-                String baseName = parts[1];
-                if (baseName.toLowerCase().endsWith(".txt")) {
-                    baseName = baseName.substring(0, baseName.length() - 4);
                 }
-                File saveDir = new File("Saves", baseName);
+            } else if (msg.toLowerCase().startsWith("/save ")) {
+                String[] parts = msg.split(" ");
+                if (parts.length == 2) {
+                String baseName = parts[1];
+                if (!baseName.toLowerCase().endsWith(".txt")) {
+                    baseName += ".txt";
+                }
+                File saveDir = new File("Saves");
                 if (!saveDir.exists()) saveDir.mkdirs();
-                File saveFile = new File(saveDir, baseName + ".txt");
+                File saveFile = new File(saveDir, baseName);
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(saveFile))) {
                     writer.write(chat.getText());
                 }
-                saveSentImagesWithLogName(saveFile.getPath());
-                append("\n[System] Chat and images saved to " + saveFile.getPath() + "\n");
-            } else {
+                append("\n[System] Chat saved to " + saveFile.getPath() + "\n");
+                } else {
                 append("\n[System] Error: Invalid command format. Use /save <filename>\n");
-            }
-        } else if (msg.toLowerCase().equals("/savewithimages")) {
-            try {
-                String baseName = "chat_log_" + System.currentTimeMillis();
-                File saveDir = new File("Saves", baseName);
-                if (!saveDir.exists()) saveDir.mkdirs();
-                File saveFile = new File(saveDir, baseName + ".txt");
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter(saveFile))) {
-                    writer.write(chat.getText());
                 }
-                saveSentImagesWithLogName(saveFile.getPath());
-                append("\n[System] Chat and images saved to " + saveFile.getPath() + "\n");
-            } catch (IOException e) {
-                append("\n[System] Error saving chat log.\n");
-            }
-        } else if (msg.toLowerCase().startsWith("/savewithimages")) {
-            String[] parts = msg.split(" ");
-            if (parts.length == 2) {
-                String baseName = parts[1];
-                if (baseName.toLowerCase().endsWith(".txt")) {
-                    baseName = baseName.substring(0, baseName.length() - 4);
-                }
-                File saveDir = new File("Saves", baseName);
-                if (!saveDir.exists()) saveDir.mkdirs();
-                File saveFile = new File(saveDir, baseName + ".txt");
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter(saveFile))) {
-                    writer.write(chat.getText());
-                }
-                saveSentImagesWithLogName(saveFile.getPath());
-                append("\n[System] Chat and images saved to " + saveFile.getPath() + "\n");
-            } else {
-                append("\n[System] Error: Invalid command format. Use /saveWithImages <filename>\n");
-            }
-        }
-            
-            else if (msg.toLowerCase().equals("/load")) {
-                
+            } else if (msg.toLowerCase().equals("/load")) {
+
                 File saveDir = new File("Saves");
                 if (!saveDir.exists() || !saveDir.isDirectory()) {
                     append("\n[System] No save directory found.\n");
@@ -819,16 +815,108 @@ public class Client implements ActionListener {
                     append("\n[ You -> " + displayName + " ]: " + message + "\n");
                 }
             }
+        } else if (msg.toLowerCase().startsWith("/block ")) {
+            String target = msg.substring(7).trim();
+            int targetID = -1;
+            try {
+                targetID = Integer.parseInt(target);
+            } catch (NumberFormatException e) {
+                // not a number, check if it's a name
+                for (var entry : tempMap.entrySet()) {
+                    String name = entry.getValue();
+                    // also check changedClients for renamed clients
+                    if (changedClients.containsKey(entry.getKey())) {
+                        name = changedClients.get(entry.getKey());
+                    }
+                    
+                    if (name.equalsIgnoreCase(target) || name.toLowerCase().startsWith(target.toLowerCase() + " ")) {
+                        targetID = entry.getKey();
+                        break;
+                    }
+                }
+            }
+
+            if (targetID == -1) {
+                    append("\n[System] Error: \"" + target + "\" not found.\n");
+                } else if (targetID == selfID) {
+                append("\n[System] Error: You cannot block yourself.\n");
+                } else if (blockedClients.contains(targetID)) {
+                append("\n[System] Error: \"" + target + "\" is already blocked.\n");
+                } else {
+                blockedClients.add(targetID);
+                append("\n[System] You have blocked " + target + ".\n");
+                }
+
+        } else if (msg.toLowerCase().startsWith("/unblockall")) {
+            if (unblockConfirmation) {
+                if (blockedClients.isEmpty()) {
+                    append("\n[System] You have no blocked users.\n");
+                } else {
+                    blockedClients.clear();
+                    append("\n[System] You have unblocked all users.\n");
+                }
+                unblockConfirmation = false;
+            } else {
+                append("\n[System] Are you sure you want to unblock all users? Type the command again to confirm.\n");
+                unblockConfirmation = true;
+            }
+
+        } else if (msg.toLowerCase().startsWith("/unblock")) {
+            String target = msg.substring(9).trim();
+            int targetID = -1;
+            try {
+                targetID = Integer.parseInt(target);
+            } catch (NumberFormatException e) {
+                // not a number, check if it's a name
+                for (var entry : tempMap.entrySet()) {
+                    String name = entry.getValue();
+                    // also check changedClients for renamed clients
+                    if (changedClients.containsKey(entry.getKey())) {
+                        name = changedClients.get(entry.getKey());
+                    }
+
+                    if (name.equalsIgnoreCase(target) || name.toLowerCase().startsWith(target.toLowerCase() + " ")) {
+                        targetID = entry.getKey();
+                        break;
+                    }
+                }
+            }
+
+            if (targetID == -1) {
+                    append("\n[System] Error: \"" + target + "\" not found.\n");
+            
+                } else if (targetID == selfID) {
+                append("\n[System] Error: You cannot unblock yourself.\n");
+                } else if (!blockedClients.contains(targetID)) {
+                    append("\n[System] Error: \"" + target + "\" is not blocked.\n");
+                } else {
+                    blockedClients.remove(Integer.valueOf(targetID));
+                    append("\n[System] You have unblocked " + target + ".\n");
+                }
+        } else if (msg.toLowerCase().equals("/blocklist")) {
+            if (blockedClients.isEmpty()) {
+                append("\n[System] You have no blocked users.\n");
+            } else {
+                append("\n[System] Blocked users:\n");
+                for (int id : blockedClients) {
+                    String name = changedClients.getOrDefault(id, "Client " + id);
+                    append(name + "\n");
+                }
+
+                append("\n");
+            }
+        } else if (msg.toLowerCase().equals("/reset")) {
+            changedClients.clear();
+            updateClientList(changedClients, false);
+            append("\n[System] All client names have been reset.\n");
         }
 
 
 
 
 
-
-
                 
-                else if (msg.length() >= 1 && msg.substring(0,1).equals("/")) {
+        else if (msg.length() >= 1 && msg.substring(0,1).equals("/")) {
             append("\n[System] Error: \"" + msg + "\" is not a valid command.\n");
         } else {
             if (client != null && !client.isClosed()) {
